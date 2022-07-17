@@ -1,7 +1,7 @@
 #include "MCTS.h"
 
 //MCT
-template<class Data> MCT<Data>::Ptr::Iterator::Iterator(const MCT& mct, MCT::Node* n, int layer) : mct(mct), node(n), layer(layer) {}
+MCT::Ptr::Iterator::Iterator(const MCT& mct, MCT::Node* n, int layer) : mct(mct), node(n), layer(layer) {}
 
 MCT::Ptr::Iterator::Iterator(const MCT::Ptr::Iterator& i) : mct(i.mct), node(i.node), layer(i.layer) {}
 

@@ -1,6 +1,6 @@
 #pragma once
 
-template <class Data>
+//template <class Data>
 class MCT
 {
 public:
@@ -12,7 +12,7 @@ public:
 		Node* bro;
 		struct _MCTData
 		{
-			Data* data;
+			void* data;
 			int total;
 			float score;
 			bool termination_flag;
@@ -73,12 +73,12 @@ protected:
 	void del(Node* n);
 	void calculateDepth(Node* n, int* max_layer, int layer = 1);
 public:
-	MCT(Data* root_data, void(*delData)(void*) = nullptr);
+	MCT(void* root_data, void(*delData)(void*) = nullptr);
 	~MCT();
 	int getNodeNum() const;
 	int getDepth() const;
 	Ptr getRoot() const;
-	Ptr addChild(const Ptr& p, Data* data, bool termination_flag = 0);
+	Ptr addChild(const Ptr& p, void* data, bool termination_flag = 0);
 	void del(Ptr& p);
 	void changeRoot(const Ptr& p);
 	int calculateDepth(const Ptr& p);
