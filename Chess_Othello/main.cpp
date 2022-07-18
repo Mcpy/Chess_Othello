@@ -26,7 +26,7 @@ int main()
 	RandomPlayer player1(1, string("player1"), black_p);
 	//HumanPlayer player2(2, string("player2"), white_p, borad_left_top, borad_right_bottom, borad_size);
 	//RandomPlayer player2(2, string("player2"), white_p);
-	AIPlayer player2(2, string("player2"), white_p, NO_LIMITS, 100000);
+	AIPlayer player2(2, string("player2"), white_p, 2000, NO_LIMITS, 5);
 	Othellojudge oj(cb, player1, player2);
 
 	//display

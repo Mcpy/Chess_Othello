@@ -85,6 +85,11 @@ int MCT::Ptr::childNum() const
 	return n->child_num;
 }
 
+int MCT::Ptr::getLayer() const
+{
+	return layer;
+}
+
 MCT::Ptr::Iterator MCT::Ptr::childIterator() const
 {
 	return Iterator(mct, n->first_child, layer + 1);
@@ -158,6 +163,7 @@ int MCT::getNodeNum() const
 {
 	return node_num;
 }
+
 
 int MCT::getDepth() const
 {
@@ -304,16 +310,16 @@ void MCTS::backup(MCT::Ptr& p, double score) const
 	}
 }
 
-MCT::Ptr MCTS::search(int time_ms, int max_iterations, int64_t* use_time, int* iterations)
+MCT::Ptr MCTS::search(int time_ms, int max_iterations, int max_depth, int64_t* use_time, int* iterations)
 {
 	if (time_ms == NO_LIMITS && max_iterations == NO_LIMITS)
 	{
 		throw ("MCTS need limits");
 	}
-	int i = 1;
+	int it_ = 1;
 	int64_t	t = 0;
 	timer.reset();
-	for (; i <= max_iterations || max_iterations == NO_LIMITS; i++)
+	for (; it_ <= max_iterations || max_iterations == NO_LIMITS; it_++)
 	{
 		t = timer.ms();
 		if (t > time_ms && time_ms != NO_LIMITS)
@@ -322,15 +328,30 @@ MCT::Ptr MCTS::search(int time_ms, int max_iterations, int64_t* use_time, int* i
 		for (; i.childNum() != 0; i = select(i)); //select
 		if (!i->termination_flag)
 		{
-			if (expansion(i)) //expansion
-				i = i.childIterator().get();
+			if (max_depth != NO_LIMITS)
+			{
+				if (i.getLayer() < max_depth)
+				{
+					if (expansion(i)) //expansion
+						i = i.childIterator().get();
+				}
+				else
+				{
+					i->termination_flag = 1;
+				}
+			}
+			else
+			{
+				if (expansion(i)) //expansion
+					i = i.childIterator().get();
+			}
 		}
 		backup(i, rollout(i)); //rollout and backup
 	}
 	if (use_time != nullptr)
 		*use_time = t;
 	if (iterations != nullptr)
-		*iterations = i;
+		*iterations = it_;
 	
 	int max_total = -1;
 	auto max_p = MCT::Ptr(mct);

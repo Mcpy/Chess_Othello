@@ -87,10 +87,11 @@ class AIPlayer :public Player
 protected:
 	int64_t time_ms;
 	int iterations;
+	int max_depth;
 public:
 	int64_t last_time;
 	int last_iterations;
-	AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations);
+	AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth);
 	void chess(const Chessjudge& cj, int* x, int* y);
 };
 

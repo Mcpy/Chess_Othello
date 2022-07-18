@@ -464,10 +464,11 @@ double MCTSOthello::rollout(MCT::Ptr& p) const
 	}
 }
 
-AIPlayer::AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations) :Player(id, name, cp), time_ms(time_ms), iterations(iterations) 
+AIPlayer::AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth) :Player(id, name, cp), time_ms(time_ms), iterations(iterations) 
 {
 	last_iterations = 0;
 	last_time = 0;
+	this->max_depth = max_depth;
 }
 
 void delData(void* data)
@@ -481,7 +482,7 @@ void AIPlayer::AIPlayer::chess(const Chessjudge& cj, int* x, int* y)
 	Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
 	MCT mct((void*)root_oj, deldata);
 	MCTSOthello mcts(mct);
-	auto ptr = mcts.search(time_ms, iterations, &last_time, &last_iterations);
+	auto ptr = mcts.search(time_ms, iterations, max_depth, &last_time, &last_iterations);
 	auto ava_list = root_oj->getAvailability();
 	auto j = ava_list.begin();
 	for (auto i = mct.getRoot().childIterator(); !i.end(); i.next())
