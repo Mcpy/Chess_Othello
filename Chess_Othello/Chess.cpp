@@ -266,13 +266,13 @@ Chesspiece& Player::piece() const
 	return *cp;
 }
 
-void Player::chess(Chessborad cb, int* x, int* y) const 
+void Player::chess(Chessborad cb, int* x, int* y)
 {
 	*x = -1;
 	*y = -1;
 }
 
-void Player::chess(const Chessjudge& cj, int* x, int* y) const 
+void Player::chess(const Chessjudge& cj, int* x, int* y)
 {
 	*x = -1;
 	*y = -1;
@@ -300,6 +300,11 @@ Chessjudge::Chessjudge(const Chessjudge& cj):cb(cj.cb),bell_flag(cj.bell_flag)
 	player_list[1] = cj.player_list[1];
 }
 
+void Chessjudge::changePlayer(bool player_flag, Player& player)
+{
+	player_list[player_flag] = &player;
+}
+
 Chessborad Chessjudge::getBorad() const
 {
 	return cb;
@@ -307,5 +312,10 @@ Chessborad Chessjudge::getBorad() const
 
 Player& Chessjudge::getCurrentPlayer() const
 {
-	return *player_list[bell_flag];
+	return *(player_list[bell_flag]);
+}
+
+Player& Chessjudge::getPlayer(bool player_flag) const
+{
+	return *(player_list[player_flag]);
 }

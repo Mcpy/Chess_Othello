@@ -306,7 +306,7 @@ HumanPlayer::HumanPlayer(int id, std::string name, Chesspiece& cp, const int lef
 	this->y_path = (right_bottom[1] - left_top[1]) / size[1];
 };
 
-void HumanPlayer::chess(Chessborad cb, int* x, int* y) const
+void HumanPlayer::chess(Chessborad cb, int* x, int* y)
 {
 	ExMessage msg;
 	*x = -1;
@@ -322,7 +322,7 @@ void HumanPlayer::chess(Chessborad cb, int* x, int* y) const
 	}
 }
 
-void HumanPlayer::chess(const Chessjudge& oj, int* x, int* y) const
+void HumanPlayer::chess(const Chessjudge& oj, int* x, int* y)
 {
 	ExMessage msg;
 	*x = -1;
@@ -363,7 +363,7 @@ void HumanPlayer::p2b(int p_x, int p_y, int* b_x, int* b_y) const
 
 RandomPlayer::RandomPlayer(int id, std::string name, Chesspiece& cp) :Player(id, name, cp) {}
 
-void RandomPlayer::chess(const Chessjudge& oj, int* x, int* y) const
+void RandomPlayer::chess(const Chessjudge& oj, int* x, int* y)
 {
 	auto ava = dynamic_cast<const Othellojudge*>(&oj)->getAvailability();
 	if (ava.empty())
@@ -376,4 +376,125 @@ void RandomPlayer::chess(const Chessjudge& oj, int* x, int* y) const
 		srand(time(0));
 		ava.at(rand() % ava.size()).coord(x, y);
 	}
+}
+
+// MCTSOthello
+MCTSOthello::MCTSOthello(MCT& mct) :MCTS(mct) 
+{
+	Othellojudge* oj = (Othellojudge*)mct.getRoot()->data;
+	Player& p1 = oj->getPlayer(PLAYER1);
+	Player& p2 = oj->getPlayer(PLAYER2);
+	player1 = new RandomPlayer(p1.id(),p1.name(),p1.piece());
+	player2 = new RandomPlayer(p2.id(), p2.name(), p2.piece());
+}
+
+MCTSOthello::~MCTSOthello()
+{
+	delete player1;
+	delete player2;
+}
+
+
+double MCTSOthello::selectFunction(MCT::Ptr& p) const
+{
+	MCT::Ptr root_ptr = mct.getRoot();
+	Othellojudge* root_oj = (Othellojudge*)root_ptr->data;
+	Othellojudge* p_oj = (Othellojudge*)p->data;
+	double uct = DBL_MAX;
+	if (root_oj->whoisNext() == p_oj->whoisNext())
+	{
+		return p->total ? (p->score / p->total + 2 * sqrt(log(root_ptr->total) / p->total)) : DBL_MAX;
+	}
+	else
+	{
+		return p->total ? (1.0 - p->score / p->total + 2 * sqrt(log(root_ptr->total) / p->total)) : DBL_MAX;
+	}
+}
+
+bool MCTSOthello::expansion(MCT::Ptr& p) const
+{
+	Othellojudge* oj = (Othellojudge*)p->data;
+	auto ava_list = oj->getAvailability();
+	if (ava_list.empty()) //无法扩展的情况
+	{
+		p->termination_flag = 1;
+		return 0;
+	}
+	else
+	{
+		for (auto i = ava_list.begin(); i != ava_list.end(); i++)
+		{
+			Othellojudge* temp_oj = new Othellojudge(*oj);
+			int x = -1, y = -1;
+			i->coord(&x, &y);
+			if (!temp_oj->chess(x, y))
+				throw("unexpected error");
+			mct.addChild(p, temp_oj);
+		}
+		return 1;
+	}
+}
+
+double MCTSOthello::rollout(MCT::Ptr& p) const
+{
+	Othellojudge oj(*(Othellojudge*)p->data);
+	oj.changePlayer(PLAYER1, *player1);
+	oj.changePlayer(PLAYER2, *player2);
+	while (1)
+	{
+		Player* win_player = nullptr;
+		Player& player = oj.whoisNext();
+		int x = -1, y = -1;
+		player.chess(oj, &x, &y);
+		oj.chess(x, y);
+		if (oj.gameover(&win_player))
+		{
+			if (win_player == nullptr)
+			{
+				return 0.0;
+			}
+			else
+			{
+				if (win_player->id() == ((Othellojudge*)mct.getRoot()->data)->whoisNext().id())
+					return 1.0;
+				else
+					return -1.0;
+			}
+		}
+	}
+}
+
+AIPlayer::AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations) :Player(id, name, cp), time_ms(time_ms), iterations(iterations) 
+{
+	last_iterations = 0;
+	last_time = 0;
+}
+
+void delData(void* data)
+{
+	Othellojudge *oj = (Othellojudge*)data;
+	delete oj;
+}
+
+void AIPlayer::AIPlayer::chess(const Chessjudge& cj, int* x, int* y)
+{
+	Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+	MCT mct((void*)root_oj, deldata);
+	MCTSOthello mcts(mct);
+	auto ptr = mcts.search(time_ms, iterations, &last_time, &last_iterations);
+	auto ava_list = root_oj->getAvailability();
+	auto j = ava_list.begin();
+	for (auto i = mct.getRoot().childIterator(); !i.end(); i.next())
+	{
+		if (i.get() == ptr)
+			break;
+		j++;
+	}
+	j->coord(x, y);
+}
+
+void deldata(void* data)
+{
+	Othellojudge* oj = (Othellojudge*)data;
+	delete oj;
 }

@@ -1,6 +1,8 @@
 #pragma once
 #include<string>
 #include<algorithm>
+#define PLAYER1 0
+#define PLAYER2 1
 class Chessborad
 {
 public:
@@ -77,8 +79,8 @@ public:
 	int id() const;
 	std::string name() const;
 	Chesspiece& piece() const;
-	virtual void chess(Chessborad cb, int* x, int* y) const;
-	virtual void chess(const Chessjudge& cj, int* x, int* y) const;
+	virtual void chess(Chessborad cb, int* x, int* y);
+	virtual void chess(const Chessjudge& cj, int* x, int* y); //cj转化为子类 dynamic_cast<const 子类名*>
 	bool operator==(const Player& p) const;
 };
 
@@ -92,10 +94,12 @@ protected:
 public:
 	Chessjudge(const Chessborad& cb, Player& player1, Player& player2);
 	Chessjudge(const Chessjudge& cj);
+	void changePlayer(bool player_flag, Player& player);
 	Chessborad getBorad() const;
 	virtual void initborad() = 0;
 	virtual bool chess(int x, int y) = 0; // 0 invalid chess; 1 valid chess;
 	virtual bool gameover(Player** p) = 0; // 0 not over; 1 gameover; p - who win, if gameover and p is nullptr is draw
 	virtual Player& whoisNext() = 0;// which player can chess
 	Player& getCurrentPlayer() const;
+	Player& getPlayer(bool player_flag) const;
 };

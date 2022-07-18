@@ -1,6 +1,23 @@
 #pragma once
+#include<float.h>
+#include<chrono>
 
-//template <class Data>
+#define NO_LIMITS -1
+
+class Timer
+{
+private:
+	std::chrono::time_point<std::chrono::high_resolution_clock> start;
+public:
+	Timer();
+	void reset();
+	int64_t ms() const;
+	int64_t s() const;
+	int64_t us() const;
+	int64_t ns() const;
+};
+
+
 class MCT
 {
 public:
@@ -14,7 +31,7 @@ public:
 		{
 			void* data;
 			int total;
-			float score;
+			double score;
 			bool termination_flag;
 			_MCTData()
 			{
@@ -56,6 +73,7 @@ public:
 		int layer;
 	public:
 		Ptr(const MCT& m, Node* n, int layer);
+		Ptr(const MCT& m);
 		Ptr(const Ptr& p);
 		bool valid() const;
 		Ptr parent() const;
@@ -63,6 +81,7 @@ public:
 		Iterator childIterator() const;
 		void operator=(const Ptr& p);
 		Node::_MCTData* operator->();
+		bool operator==(const Ptr& p) const;
 		friend class MCT;
 	};
 protected:
@@ -84,10 +103,18 @@ public:
 	int calculateDepth(const Ptr& p);
 };
 
+
 class MCTS
 {
+protected:
+	Timer timer;
+	MCT& mct;
 public:
-	MCT::Ptr select(MCT::Ptr& p);
-	float selectFunction(void* data);
-
+	MCTS(MCT& mct);
+	MCT::Ptr select(MCT::Ptr& p) const;
+	virtual double selectFunction(MCT::Ptr& p) const = 0;
+	virtual bool expansion(MCT::Ptr& p) const = 0; //可以扩展扩展后返回1；不可扩展 设置终止标志返回0；
+	virtual double rollout(MCT::Ptr& p) const = 0; // 会有终止标记的数据
+	void backup(MCT::Ptr& p, double score) const;
+	MCT::Ptr search(int time_ms, int max_iterations, int64_t* use_time = nullptr, int* iterations = nullptr);
 };

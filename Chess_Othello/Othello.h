@@ -1,8 +1,10 @@
 #pragma once
 #include"Chess.h"
 #include"Display.h"
+#include"MCTS.h"
 #include<vector>
 #include<ctime>
+#include<cmath>
 
 #define BLACKPIECE false
 #define WHITEPIECE true
@@ -56,13 +58,40 @@ protected:
 
 public: 
 	HumanPlayer(int id, std::string name, Chesspiece& cp,const int left_top[2],const int right_bottom[2],const int size[2]);
-	void chess(Chessborad cb, int* x, int* y) const;
-	void chess(const Chessjudge& oj, int* x, int* y) const;
+	void chess(Chessborad cb, int* x, int* y);
+	void chess(const Chessjudge& oj, int* x, int* y);
 };
 
 class RandomPlayer :public Player
 {
 public:
 	RandomPlayer(int id, std::string name, Chesspiece& cp);
-	void chess(const Chessjudge& oj, int* x, int* y) const;
+	void chess(const Chessjudge& oj, int* x, int* y);
 };
+
+class MCTSOthello :public MCTS
+{
+protected:
+	RandomPlayer *player1, *player2;
+public:
+	MCTSOthello(MCT& mct);
+	~MCTSOthello();
+	double selectFunction(MCT::Ptr& p) const;
+	bool expansion(MCT::Ptr& p) const;
+	double rollout(MCT::Ptr& p) const;
+};
+
+
+class AIPlayer :public Player
+{
+protected:
+	int64_t time_ms;
+	int iterations;
+public:
+	int64_t last_time;
+	int last_iterations;
+	AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations);
+	void chess(const Chessjudge& cj, int* x, int* y);
+};
+
+void deldata(void* data);
