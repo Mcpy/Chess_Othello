@@ -400,7 +400,6 @@ double MCTSOthello::selectFunction(MCT::Ptr& p) const
 	MCT::Ptr root_ptr = mct.getRoot();
 	Othellojudge* root_oj = (Othellojudge*)root_ptr->data;
 	Othellojudge* p_oj = (Othellojudge*)p->data;
-	double uct = DBL_MAX;
 	if (root_oj->whoisNext() == p_oj->whoisNext())
 	{
 		return p->total ? (p->score / p->total + 2 * sqrt(log(root_ptr->total) / p->total)) : DBL_MAX;

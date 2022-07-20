@@ -42,7 +42,7 @@ int main()
 	window.draw(white_msg);
 
 	int statistics_total = 0, statistics_b_win = 0, statistics_w_win = 0, statistics_draw = 0;
-	int& player2_iterations = player2.last_iterations;
+	//int& player2_iterations = player2.last_iterations;
 	while (1)
 	{
 		Player* win_player = nullptr;
@@ -53,7 +53,7 @@ int main()
 		
 		black_msg.set(string("Black: ") + to_string(oj.getPiecesNum(BLACKPIECE)));
 		white_msg.set(string("White: ") + to_string(oj.getPiecesNum(WHITEPIECE)));
-		cout << player2_iterations << endl;
+		//cout << player2_iterations << endl;
 		window.reflash();
 		if (oj.gameover(&win_player))
 		{
