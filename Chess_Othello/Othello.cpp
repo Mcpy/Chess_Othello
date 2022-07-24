@@ -4,6 +4,9 @@
 Othellojudge::Othellojudge(const Chessborad& cb, Player& player_black, Player& player_white) :Chessjudge(cb, player_black, player_white)
 {
 	initborad();
+	last_chess[0] = -1;
+	last_chess[1] = -1;
+	last_player_id = -1;
 }
 
 Othellojudge::Othellojudge(const Othellojudge& oj) : Chessjudge(oj)
@@ -11,6 +14,9 @@ Othellojudge::Othellojudge(const Othellojudge& oj) : Chessjudge(oj)
 	player_chess_num[0] = oj.player_chess_num[0];
 	player_chess_num[1] = oj.player_chess_num[1];
 	availability_point = oj.availability_point;
+	last_chess[0] = oj.last_chess[0];
+	last_chess[1] = oj.last_chess[1];
+	last_player_id = oj.last_player_id;
 }
 
 void Othellojudge::initborad()
@@ -112,7 +118,7 @@ bool Othellojudge::turn(int x, int y, const int dir[2])
 
 bool Othellojudge::gameover(Player** p)
 {
-	*p = nullptr;
+	Player *p_temp = nullptr;
 	bool over_flag = 0;
 	if (availability_point.empty())
 	{
@@ -123,14 +129,16 @@ bool Othellojudge::gameover(Player** p)
 			over_flag = 1;
 			if (player_chess_num[0] > player_chess_num[1])
 			{
-				*p = player_list[0];
+				p_temp = player_list[0];
 			}
 			if (player_chess_num[0] < player_chess_num[1])
 			{
-				*p = player_list[1];
+				p_temp = player_list[1];
 			}
 		}
 	}
+	if (p != nullptr)
+		*p = p_temp;
 	return over_flag;
 }
 
@@ -150,6 +158,9 @@ bool Othellojudge::chess(int x, int y)
 	if (valid_flag)
 	{
 		cb.set(x, y, player_list[bell_flag]->piece().id());
+		last_chess[0] = x;
+		last_chess[1] = y;
+		last_player_id = player_list[bell_flag]->id();
 		player_chess_num[bell_flag]++;
 		const int dir_x[] = { 1,1,0 ,-1,-1,-1,0,1 };
 		const int dir_y[] = { 0,1,1 ,1,0,-1,-1,-1 };
@@ -400,7 +411,7 @@ double MCTSOthello::selectFunction(MCT::Ptr& p) const
 	MCT::Ptr root_ptr = mct.getRoot();
 	Othellojudge* root_oj = (Othellojudge*)root_ptr->data;
 	Othellojudge* p_oj = (Othellojudge*)p->data;
-	if (root_oj->whoisNext() == p_oj->whoisNext())
+	if (root_oj->whoisNext().id() == p_oj->last_player_id)
 	{
 		return p->total ? (p->score / p->total + 2 * sqrt(log(root_ptr->total) / p->total)) : DBL_MAX;
 	}
@@ -413,14 +424,14 @@ double MCTSOthello::selectFunction(MCT::Ptr& p) const
 bool MCTSOthello::expansion(MCT::Ptr& p) const
 {
 	Othellojudge* oj = (Othellojudge*)p->data;
-	auto ava_list = oj->getAvailability();
-	if (ava_list.empty()) //无法扩展的情况
+	if(oj->gameover())
 	{
 		p->termination_flag = 1;
 		return 0;
 	}
 	else
 	{
+		auto ava_list = oj->getAvailability();
 		for (auto i = ava_list.begin(); i != ava_list.end(); i++)
 		{
 			Othellojudge* temp_oj = new Othellojudge(*oj);
@@ -468,6 +479,16 @@ AIPlayer::AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, in
 	last_iterations = 0;
 	last_time = 0;
 	this->max_depth = max_depth;
+	mct = nullptr;
+	mcts = nullptr;
+}
+
+AIPlayer::~AIPlayer()
+{
+	if (mct != nullptr)
+		delete mct;
+	if (mcts != nullptr)
+		delete mcts;
 }
 
 void delData(void* data)
@@ -479,18 +500,49 @@ void delData(void* data)
 void AIPlayer::AIPlayer::chess(const Chessjudge& cj, int* x, int* y)
 {
 	Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
-	MCT mct((void*)root_oj, deldata);
-	MCTSOthello mcts(mct);
-	auto ptr = mcts.search(time_ms, iterations, max_depth, &last_time, &last_iterations);
-	auto ava_list = root_oj->getAvailability();
-	auto j = ava_list.begin();
-	for (auto i = mct.getRoot().childIterator(); !i.end(); i.next())
+	if (mct == nullptr)
 	{
-		if (i.get() == ptr)
-			break;
-		j++;
+		mct = new MCT((void*)root_oj, deldata);
+		mcts = new MCTSOthello(*mct);
 	}
-	j->coord(x, y);
+	else
+	{
+		auto root = mct->getRoot();
+		if (cj.getBorad() != ((Othellojudge*)root->data)->getBorad())
+		{
+			bool flag = false;
+			for (auto i = root.childIterator(); !i.end(); i.next())
+			{
+				Othellojudge* temp_oj = (Othellojudge*)i.get()->data;
+				if (temp_oj->getBorad() == cj.getBorad())
+				{
+					mct->changeRoot(i.get());
+					flag = true;
+					break;
+				}
+			}
+			if (!flag)
+			{
+				throw("AIPlayer::chess: unknown error!");
+			}
+		}
+	}
+	auto ptr = mcts->search(time_ms, iterations, max_depth, &last_time, &last_iterations);
+	mct->changeRoot(ptr);
+	Othellojudge* temp_oj = (Othellojudge*)ptr->data;
+	*x = temp_oj->last_chess[0];
+	*y = temp_oj->last_chess[1];
+}
+
+void AIPlayer::init()
+{
+	if (mct != nullptr)
+		delete mct;
+	if (mcts != nullptr)
+		delete mcts;
+
+	mct = nullptr;
+	mcts = nullptr;
 }
 
 void deldata(void* data)

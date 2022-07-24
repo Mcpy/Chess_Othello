@@ -21,14 +21,16 @@ protected:
 	int index(const Player& p);
 	int player_chess_num[2];
 	std::vector<Chessborad::Ptr> availability_point;
-	bool turn(int x, int y, const int dir[2]);
+	bool turn(int x, int y, const int dir[2]); //·­×ªÆå×Ó
 
 public:
+	int last_chess[2];
+	int last_player_id;
 	Othellojudge(const Chessborad& cb, Player& player_black, Player& player_white); //player1 ºÚ£» player2 °×
 	Othellojudge(const Othellojudge& oj);
 	void initborad();
 	bool chess(int x, int y); // 0 invalid chess; 1 valid chess;
-	bool gameover(Player** p); // 0 not over; 1 gameover; p - who win, if gameover and p is nullptr is draw
+	bool gameover(Player** p = nullptr); // 0 not over; 1 gameover; p - who win, if gameover and p is nullptr is draw
 	Player& whoisNext();
 	Chesspiece& getPiece(bool player_flag) const;
 	const std::vector<Chessborad::Ptr>& getAvailability() const;
@@ -88,11 +90,15 @@ protected:
 	int64_t time_ms;
 	int iterations;
 	int max_depth;
+	MCT *mct;
+	MCTSOthello *mcts;
 public:
 	int64_t last_time;
 	int last_iterations;
 	AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth);
+	~AIPlayer();
 	void chess(const Chessjudge& cj, int* x, int* y);
+	void init();
 };
 
 void deldata(void* data);

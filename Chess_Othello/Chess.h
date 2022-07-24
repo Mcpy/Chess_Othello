@@ -50,6 +50,7 @@ public:
 	void operator=(const Chessborad& cb);
 	int* operator[](const int x);
 	bool operator==(const Chessborad& cb);
+	bool operator!=(const Chessborad& cb);
 };
 
 
@@ -81,6 +82,7 @@ public:
 	Chesspiece& piece() const;
 	virtual void chess(Chessborad cb, int* x, int* y);
 	virtual void chess(const Chessjudge& cj, int* x, int* y); //cj转化为子类 dynamic_cast<const 子类名*>
+	virtual void init();
 	bool operator==(const Player& p) const;
 };
 

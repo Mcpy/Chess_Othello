@@ -221,6 +221,27 @@ bool Chessborad::operator==(const Chessborad& cb)
 	return flag;
 }
 
+bool Chessborad::operator!=(const Chessborad& cb)
+{
+	bool flag = 0;
+	if (cb.size[0] == size[0] && cb.size[1] == size[1])
+	{
+		for (auto i = begin(); !i.end(); i.next())
+		{
+			if (get(i) != cb.get(i))
+			{
+				flag = 1;
+				break;
+			}
+		}
+	}
+	else
+	{
+		flag = 1;
+	}
+	return flag;
+}
+
 
 //Chesspiece
 Chesspiece::Chesspiece(int id, std::string name, void (*dsp)(int, int)) :chess_id(id), chess_name(name), dsp(dsp) 
@@ -276,6 +297,11 @@ void Player::chess(const Chessjudge& cj, int* x, int* y)
 {
 	*x = -1;
 	*y = -1;
+}
+
+void Player::init()
+{
+	return;
 }
 
 

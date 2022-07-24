@@ -117,5 +117,5 @@ public:
 	virtual bool expansion(MCT::Ptr& p) const = 0; //可以扩展扩展后返回1；不可扩展 设置终止标志返回0；
 	virtual double rollout(MCT::Ptr& p) const = 0; // 会有终止标记的数据
 	void backup(MCT::Ptr& p, double score) const;
-	MCT::Ptr search(int time_ms, int max_iterations, int max_depth, int64_t* use_time = nullptr, int* iterations = nullptr);
+	MCT::Ptr search(int time_ms, int max_iterations, int max_step, int64_t* use_time = nullptr, int* iterations = nullptr);
 };

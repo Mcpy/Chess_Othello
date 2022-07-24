@@ -47,6 +47,7 @@ int main()
 	{
 		Player* win_player = nullptr;
 		Player& p = oj.whoisNext();
+		window.reflash();
 		int b_x = -1, b_y = -1;
 		p.chess(oj, &b_x, &b_y);
 		oj.chess(b_x, b_y);
@@ -79,6 +80,8 @@ int main()
 			}
 			MessageBox(window.gethandle(), tc, _T("Game Over"), MB_OK);
 			oj.initborad();
+			player1.init();
+			player2.init();
 			black_msg.set(string("Black: 2"));
 			white_msg.set(string("White: 2"));
 			window.reflash();

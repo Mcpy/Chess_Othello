@@ -239,6 +239,7 @@ void MCT::changeRoot(const MCT::Ptr& p)
 			i->bro = p.n->bro;
 		}
 		p.n->parent = nullptr;
+		p.n->bro = nullptr;
 		root = p.n;
 		del(temp);
 		depth = 0;
@@ -310,8 +311,9 @@ void MCTS::backup(MCT::Ptr& p, double score) const
 	}
 }
 
-MCT::Ptr MCTS::search(int time_ms, int max_iterations, int max_depth, int64_t* use_time, int* iterations)
+MCT::Ptr MCTS::search(int time_ms, int max_iterations, int max_step, int64_t* use_time, int* iterations)
 {
+	int max_depth = max_step + 1;
 	if (time_ms == NO_LIMITS && max_iterations == NO_LIMITS)
 	{
 		throw ("MCTS need limits");
@@ -324,6 +326,7 @@ MCT::Ptr MCTS::search(int time_ms, int max_iterations, int max_depth, int64_t* u
 		t = timer.ms();
 		if (t > time_ms && time_ms != NO_LIMITS)
 			break;
+
 		MCT::Ptr i = mct.getRoot();
 		for (; i.childNum() != 0; i = select(i)); //select
 		if (!i->termination_flag)
@@ -334,10 +337,6 @@ MCT::Ptr MCTS::search(int time_ms, int max_iterations, int max_depth, int64_t* u
 				{
 					if (expansion(i)) //expansion
 						i = i.childIterator().get();
-				}
-				else
-				{
-					i->termination_flag = 1;
 				}
 			}
 			else
