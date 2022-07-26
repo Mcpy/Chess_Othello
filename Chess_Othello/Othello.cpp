@@ -39,7 +39,7 @@ void Othellojudge::availability()
 	const int dir_x[] = { 1,1,0 ,-1,-1,-1,0,1 };
 	const int dir_y[] = { 0,1,1 ,1,0,-1,-1,-1 };
 	int direction[2] = { 0,0 };
-	Chessborad cb_temp(cb.getSize(0), cb.getSize(1));
+	Chessborad cb_temp(cb.getSize(0), cb.getSize(1)); //用来计数可落子点、避免重复
 	for (auto i = cb.begin(); !i.end(); i.next())
 	{
 		if (cb.get(i) == player_list[bell_flag]->piece().id()) //以该子为中心搜索可落子
@@ -499,32 +499,26 @@ void delData(void* data)
 
 void AIPlayer::AIPlayer::chess(const Chessjudge& cj, int* x, int* y)
 {
-	Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+	
 	if (mct == nullptr)
 	{
+		Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
 		mct = new MCT((void*)root_oj, deldata);
 		mcts = new MCTSOthello(*mct);
 	}
 	else
 	{
-		auto root = mct->getRoot();
-		if (cj.getBorad() != ((Othellojudge*)root->data)->getBorad())
+		auto ptr = mct->find(&cj, findFunc); //寻找节点，继承已经迭代的数据
+		if (ptr.valid())
 		{
-			bool flag = false;
-			for (auto i = root.childIterator(); !i.end(); i.next())
-			{
-				Othellojudge* temp_oj = (Othellojudge*)i.get()->data;
-				if (temp_oj->getBorad() == cj.getBorad())
-				{
-					mct->changeRoot(i.get());
-					flag = true;
-					break;
-				}
-			}
-			if (!flag)
-			{
-				throw("AIPlayer::chess: unknown error!");
-			}
+			mct->changeRoot(ptr);
+		}
+		else // 没有节点 重新建立树
+		{
+			init();
+			Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+			mct = new MCT((void*)root_oj, deldata);
+			mcts = new MCTSOthello(*mct);
 		}
 	}
 	auto ptr = mcts->search(time_ms, iterations, max_depth, &last_time, &last_iterations);
@@ -549,4 +543,11 @@ void deldata(void* data)
 {
 	Othellojudge* oj = (Othellojudge*)data;
 	delete oj;
+}
+
+bool findFunc(const void* data1, const void* data2)
+{
+	const Chessjudge* cj1 = (const Chessjudge*)data1;
+	const Chessjudge* cj2 = (const Chessjudge*)data2;
+	return (cj1->getBorad() == cj2->getBorad());
 }

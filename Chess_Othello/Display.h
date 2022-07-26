@@ -49,6 +49,7 @@ public:
 	int len();
 	Ptr begin();
 	Display* get(Ptr& p);
+	Display* get(std::string tags);
 	Display* operator[](const int n);
 };
 
@@ -71,7 +72,9 @@ public:
 	void clear(std::string tags);// maybe clear other things
 	void reflash();//clear all and darw from list
 	void del(std::string tags);// del the Display from list but not clear;
+	Display* get(std::string tags);
 	HWND gethandle();
+	void messageBox(LPCWSTR msg, LPCWSTR title, UINT flags);
 };
 
 class TextBar :public Display

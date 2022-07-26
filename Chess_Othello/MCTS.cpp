@@ -196,6 +196,28 @@ MCT::Ptr MCT::addChild(const MCT::Ptr& p, void* data, bool termination_flag)
 	}
 }
 
+MCT::Ptr MCT::find(const void* data, bool(*findFunc)(const void*, const void*)) const
+{
+	std::queue<Ptr> ptr_queue;
+	ptr_queue.push(getRoot());
+	Ptr ptr(*this);
+	while (!ptr_queue.empty())
+	{
+		Ptr p = ptr_queue.front();
+		ptr_queue.pop();
+		if (findFunc(data, p->data))
+		{
+			ptr = p;
+			break;
+		}
+		for (auto i = p.childIterator(); !i.end(); i.next())
+		{
+			ptr_queue.push(i.get());
+		}
+	}
+	return ptr;
+}
+
 void MCT::del(MCT::Ptr& p)
 {
 	if (p.mct.root != root)

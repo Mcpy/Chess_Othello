@@ -146,6 +146,20 @@ Display* Displaylist::get(Displaylist::Ptr& p)
 	return p.get();
 }
 
+Display* Displaylist::get(std::string tags)
+{
+	Display* d = nullptr;
+	for (auto i = begin(); !i.end(); i.next())
+	{
+		if (i.get()->tag() == tags)
+		{
+			d = i.get();
+			break;
+		}
+	}
+	return d;
+}
+
 Display* Displaylist::operator[](const int n)
 {
 	Display* dsp = nullptr;
@@ -219,9 +233,19 @@ void Window::del(std::string tags)
 	dis_list.pop(tags);
 }
 
+Display* Window::get(std::string tags)
+{
+	return dis_list.get(tags);
+}
+
 HWND Window::gethandle()
 {
 	return handle;
+}
+
+void Window::messageBox(LPCWSTR msg, LPCWSTR title, UINT flags)
+{
+	MessageBox(handle, msg, title, flags);
 }
 
 //Display

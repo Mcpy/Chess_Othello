@@ -102,3 +102,5 @@ public:
 };
 
 void deldata(void* data);
+
+bool findFunc(const void* data1, const void* data2);

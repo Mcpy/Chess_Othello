@@ -1,8 +1,11 @@
 #pragma once
 #include<float.h>
 #include<chrono>
+#include<queue>
 
 #define NO_LIMITS -1
+#define BFS 1
+#define DFS 0
 
 class Timer
 {
@@ -99,6 +102,7 @@ public:
 	int getDepth() const;
 	Ptr getRoot() const;
 	Ptr addChild(const Ptr& p, void* data, bool termination_flag = 0);
+	Ptr find(const void* data, bool(*findFunc)(const void*, const void*)) const;
 	void del(Ptr& p);
 	void changeRoot(const Ptr& p);
 	int calculateDepth(const Ptr& p);
