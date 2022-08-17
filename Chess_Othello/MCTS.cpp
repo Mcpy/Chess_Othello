@@ -324,7 +324,7 @@ MCT::Ptr MCTS::select(MCT::Ptr& p) const
 
 
 
-void MCTS::backup(MCT::Ptr& p, double score) const
+void MCTS::backup(MCT::Ptr& p, double score)
 {
 	for (MCT::Ptr i = p; i.valid(); i = i.parent())
 	{
@@ -353,7 +353,7 @@ MCT::Ptr MCTS::search(int time_ms, int max_iterations, int max_step, int64_t* us
 		for (; i.childNum() != 0; i = select(i)); //select
 		if (!i->termination_flag)
 		{
-			if (max_depth != NO_LIMITS)
+			if (max_depth - 1 != NO_LIMITS)
 			{
 				if (i.getLayer() < max_depth)
 				{
@@ -387,3 +387,5 @@ MCT::Ptr MCTS::search(int time_ms, int max_iterations, int max_step, int64_t* us
 	}
 	return max_p;
 }
+
+

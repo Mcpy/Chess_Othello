@@ -180,6 +180,19 @@ int Chessborad::getSize(bool dim)
 		return size[0];
 }
 
+void Chessborad::print() const
+{
+	for (int i = 0; i < size[1]; i++)
+	{
+		for (int j = 0; j < size[0]; j++)
+		{
+			std::cout << borad[i][j] << "\t";
+		}
+		std::cout << "\n";
+	}
+	std::cout << std::endl;
+}
+
 
 Chessborad::Ptr Chessborad::begin()
 {

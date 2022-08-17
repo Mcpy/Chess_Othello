@@ -2,6 +2,7 @@
 #include"Chess.h"
 #include"Display.h"
 #include"MCTS.h"
+#include"ThreadPool.h"
 #include<vector>
 #include<ctime>
 #include<cmath>
@@ -80,9 +81,48 @@ public:
 	~MCTSOthello();
 	double selectFunction(MCT::Ptr& p) const;
 	bool expansion(MCT::Ptr& p) const;
-	double rollout(MCT::Ptr& p) const;
+	double rollout(MCT::Ptr& p);
 };
 
+class MCTSOthelloParallelisation :public MCTSOthello
+{
+public:
+	class ThreadRollout :public ThreadTask
+	{
+	private:
+		MCT::Ptr& p;
+		std::atomic<double>* score;
+		Player* player1, * player2;
+		int root_player_id;
+	public:
+		ThreadRollout(MCT::Ptr& p, std::atomic<double>* score, Player* p1, Player* p2, int root_player_id);
+		void start();
+	};
+protected:
+	ThreadPool& tp;
+	int thread_num;
+public:
+	MCTSOthelloParallelisation(MCT& mct, ThreadPool& tp,int thread_num);
+	double rollout(MCT::Ptr& p);
+};
+
+class AMAFOthello :public MCTSOthello
+{
+public:
+	struct Coor
+	{
+		int x;
+		int y;
+		Coor() :x(-1), y(-1) {};
+		Coor(int x_, int y_) :x(x_), y(y_) {};
+	};
+protected:
+	std::list<Coor> rollout_step[2];
+public:
+	AMAFOthello(MCT& mct);
+	double rollout(MCT::Ptr& p);
+	void backup(MCT::Ptr& p, double score);
+};
 
 class AIPlayer :public Player
 {
@@ -97,6 +137,42 @@ public:
 	int last_iterations;
 	AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth);
 	~AIPlayer();
+	void chess(const Chessjudge& cj, int* x, int* y);
+	void init();
+};
+
+class AIPlayer_Thread :public Player
+{
+protected:
+	int64_t time_ms;
+	int iterations;
+	int max_depth;
+	MCT* mct;
+	MCTSOthelloParallelisation* mcts;
+	ThreadPool& tp;
+	int thread_num;
+public:
+	int64_t last_time;
+	int last_iterations;
+	AIPlayer_Thread(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth, ThreadPool& tp, int thread_num);
+	~AIPlayer_Thread();
+	void chess(const Chessjudge& cj, int* x, int* y);
+	void init();
+};
+
+class AMAFPlayer :public Player
+{
+protected:
+	int64_t time_ms;
+	int iterations;
+	int max_depth;
+	MCT* mct;
+	AMAFOthello* mcts;
+public:
+	int64_t last_time;
+	int last_iterations;
+	AMAFPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth);
+	~AMAFPlayer();
 	void chess(const Chessjudge& cj, int* x, int* y);
 	void init();
 };

@@ -2,6 +2,7 @@
 #include<float.h>
 #include<chrono>
 #include<queue>
+#include<list>
 
 #define NO_LIMITS -1
 #define BFS 1
@@ -119,7 +120,7 @@ public:
 	MCT::Ptr select(MCT::Ptr& p) const;
 	virtual double selectFunction(MCT::Ptr& p) const = 0;
 	virtual bool expansion(MCT::Ptr& p) const = 0; //可以扩展扩展后返回1；不可扩展 设置终止标志返回0；
-	virtual double rollout(MCT::Ptr& p) const = 0; // 会有终止标记的数据
-	void backup(MCT::Ptr& p, double score) const;
+	virtual double rollout(MCT::Ptr& p) = 0; // 会有终止标记的数据
+	virtual void backup(MCT::Ptr& p, double score);
 	MCT::Ptr search(int time_ms, int max_iterations, int max_step, int64_t* use_time = nullptr, int* iterations = nullptr);
 };

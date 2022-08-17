@@ -1,6 +1,7 @@
 #pragma once
 #include<string>
 #include<algorithm>
+#include<iostream>
 #define PLAYER1 0
 #define PLAYER2 1
 class Chessborad
@@ -46,6 +47,7 @@ public:
 	void set(int x, int y, int chess_id);
 	void set(Ptr& p, int chess_id);
 	int getSize(bool dim = 0); // 0 - x; 1 - y
+	void print() const;
 	Ptr begin();
 	void operator=(const Chessborad& cb);
 	int* operator[](const int x);

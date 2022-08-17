@@ -143,6 +143,8 @@
     <ClInclude Include="Display.h" />
     <ClInclude Include="MCTS.h" />
     <ClInclude Include="Othello.h" />
+    <ClInclude Include="ThreadPool.h" />
+    <ClInclude Include="tic_tac_toe.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Chess.cpp" />
@@ -150,6 +152,8 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MCTS.cpp" />
     <ClCompile Include="Othello.cpp" />
+    <ClCompile Include="ThreadPool.cpp" />
+    <ClCompile Include="tic_tac_toe.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

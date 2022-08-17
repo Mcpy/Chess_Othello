@@ -445,7 +445,7 @@ bool MCTSOthello::expansion(MCT::Ptr& p) const
 	}
 }
 
-double MCTSOthello::rollout(MCT::Ptr& p) const
+double MCTSOthello::rollout(MCT::Ptr& p)
 {
 	Othellojudge oj(*(Othellojudge*)p->data);
 	oj.changePlayer(PLAYER1, *player1);
@@ -474,7 +474,8 @@ double MCTSOthello::rollout(MCT::Ptr& p) const
 	}
 }
 
-AIPlayer::AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth) :Player(id, name, cp), time_ms(time_ms), iterations(iterations) 
+AIPlayer::AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth) 
+	:Player(id, name, cp), time_ms(time_ms), iterations(iterations) 
 {
 	last_iterations = 0;
 	last_time = 0;
@@ -551,3 +552,233 @@ bool findFunc(const void* data1, const void* data2)
 	const Chessjudge* cj2 = (const Chessjudge*)data2;
 	return (cj1->getBorad() == cj2->getBorad());
 }
+
+AMAFOthello::AMAFOthello(MCT& mct) :MCTSOthello(mct) {}
+
+double AMAFOthello::rollout(MCT::Ptr& p)
+{
+	Othellojudge oj(*(Othellojudge*)p->data);
+	oj.changePlayer(PLAYER1, *player1);
+	oj.changePlayer(PLAYER2, *player2);
+	while (1)
+	{
+		Player* win_player = nullptr;
+		Player& player = oj.whoisNext();
+		int x = -1, y = -1;
+		player.chess(oj, &x, &y);
+		if (oj.chess(x, y))
+		{
+			rollout_step[player.id() == player2->id()].emplace_back(x, y);
+		}
+		if (oj.gameover(&win_player))
+		{
+			if (win_player == nullptr)
+			{
+				return 0.0;
+			}
+			else
+			{
+				if (win_player->id() == ((Othellojudge*)mct.getRoot()->data)->whoisNext().id())
+					return 1.0;
+				else
+					return -1.0;
+			}
+		}
+	}
+}
+
+void AMAFOthello::backup(MCT::Ptr& p, double score)
+{
+	for (MCT::Ptr i = p; i.valid(); i = i.parent())
+	{
+		i->score += score;
+		i->total++;
+		for (auto j = i.childIterator(); !j.end(); j.next())
+		{
+			auto j_ptr = j.get();
+			Othellojudge* oj = (Othellojudge*)j_ptr->data;
+			for (auto& k : rollout_step[oj->last_player_id == player2->id()])
+			{
+				if (k.x == oj->last_chess[0] && k.y == oj->last_chess[1])
+				{
+					j_ptr->score += score;
+					j_ptr->total++;
+					break;
+				}
+			}
+		}
+	}
+	for (auto i : rollout_step)
+	{
+		i.clear();
+	}
+}
+
+AMAFPlayer::AMAFPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth)
+	:Player(id, name, cp), time_ms(time_ms), iterations(iterations)
+{
+	last_iterations = 0;
+	last_time = 0;
+	this->max_depth = max_depth;
+	mct = nullptr;
+	mcts = nullptr;
+}
+
+AMAFPlayer::~AMAFPlayer()
+{
+	if (mct != nullptr)
+		delete mct;
+	if (mcts != nullptr)
+		delete mcts;
+}
+
+void AMAFPlayer::chess(const Chessjudge& cj, int* x, int* y)
+{
+	if (mct == nullptr)
+	{
+		Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+		mct = new MCT((void*)root_oj, deldata);
+		mcts = new AMAFOthello(*mct);
+	}
+	else
+	{
+		auto ptr = mct->find(&cj, findFunc); //寻找节点，继承已经迭代的数据
+		if (ptr.valid())
+		{
+			mct->changeRoot(ptr);
+		}
+		else // 没有节点 重新建立树
+		{
+			init();
+			Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+			mct = new MCT((void*)root_oj, deldata);
+			mcts = new AMAFOthello(*mct);
+		}
+	}
+	auto ptr = mcts->search(time_ms, iterations, max_depth, &last_time, &last_iterations);
+	mct->changeRoot(ptr);
+	Othellojudge* temp_oj = (Othellojudge*)ptr->data;
+	*x = temp_oj->last_chess[0];
+	*y = temp_oj->last_chess[1];
+}
+
+void AMAFPlayer::init()
+{
+	if (mct != nullptr)
+		delete mct;
+	if (mcts != nullptr)
+		delete mcts;
+
+	mct = nullptr;
+	mcts = nullptr;
+}
+
+MCTSOthelloParallelisation::ThreadRollout::ThreadRollout(MCT::Ptr& p, std::atomic<double>* score, Player* p1, Player* p2, int root_player_id)
+	: p(p), score(score), player1(p1), player2(p2), root_player_id(root_player_id) {}
+
+void MCTSOthelloParallelisation::ThreadRollout::start()
+{
+	Othellojudge oj(*(Othellojudge*)p->data);
+	oj.changePlayer(PLAYER1, *player1);
+	oj.changePlayer(PLAYER2, *player2);
+	while (1)
+	{
+		Player* win_player = nullptr;
+		Player& player = oj.whoisNext();
+		int x = -1, y = -1;
+		player.chess(oj, &x, &y);
+		oj.chess(x, y);
+		if (oj.gameover(&win_player))
+		{
+			if (win_player != nullptr)
+			{
+				if (win_player->id() == root_player_id)
+					score++;
+				else
+					score--;
+			}
+		}
+	}
+}
+
+MCTSOthelloParallelisation::MCTSOthelloParallelisation(MCT& mct, ThreadPool& tp, int thread_num)
+	:MCTSOthello(mct), thread_num(thread_num), tp(tp)
+{
+}
+
+double MCTSOthelloParallelisation::rollout(MCT::Ptr& p)
+{
+	std::atomic<double> score = 0.0;
+	int root_player_id = ((Othellojudge*)mct.getRoot()->data)->whoisNext().id();
+	std::list<ThreadRollout> thread_rollout_list;
+	for (int i = 0; i < thread_num; i++)
+	{
+		thread_rollout_list.emplace_back(p, score, player1, player2, root_player_id);
+	}
+	for (auto& i : thread_rollout_list)
+	{
+		tp.pushTask(&i);
+	}
+	while (tp.runningNum())
+	{
+		std::this_thread::yield();
+	}
+	return score;
+}
+
+AIPlayer_Thread::AIPlayer_Thread(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth, ThreadPool& tp, int thread_num)
+	:Player(id, name, cp), time_ms(time_ms), iterations(iterations),tp(tp),thread_num(thread_num)
+{
+	last_iterations = 0;
+	last_time = 0;
+	this->max_depth = max_depth;
+	mct = nullptr;
+	mcts = nullptr;
+}
+
+AIPlayer_Thread::~AIPlayer_Thread()
+{
+	if (mct != nullptr)
+		delete mct;
+	if (mcts != nullptr)
+		delete mcts;
+}
+
+void AIPlayer_Thread::chess(const Chessjudge& cj, int* x, int* y)
+{
+	if (mct == nullptr)
+	{
+		Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+		mct = new MCT((void*)root_oj, deldata);
+		mcts = new MCTSOthelloParallelisation(*mct, tp, thread_num);
+	}
+	else
+	{
+		auto ptr = mct->find(&cj, findFunc); //寻找节点，继承已经迭代的数据
+		if (ptr.valid())
+		{
+			mct->changeRoot(ptr);
+		}
+		else // 没有节点 重新建立树
+		{
+			init();
+			Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+			mct = new MCT((void*)root_oj, deldata);
+			mcts = new MCTSOthelloParallelisation(*mct, tp, thread_num);
+		}
+	}
+	auto ptr = mcts->search(time_ms, iterations, max_depth, &last_time, &last_iterations);
+	mct->changeRoot(ptr);
+	Othellojudge* temp_oj = (Othellojudge*)ptr->data;
+	*x = temp_oj->last_chess[0];
+	*y = temp_oj->last_chess[1];
+}
+
+void AIPlayer_Thread::init()
+{
+	if (mct != nullptr)
+		delete mct;
+	if (mcts != nullptr)
+		delete mcts;
+}
+

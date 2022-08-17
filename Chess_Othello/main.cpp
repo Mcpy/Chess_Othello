@@ -1,5 +1,6 @@
 #include"Othello.h"
 #include"MCTS.h"
+#include"tic_tac_toe.h"
 #include<iostream>
 using namespace std;
 
@@ -86,10 +87,66 @@ int main_game()
 
 int experiment(Player& player_black, Player& player_white);
 void runExperiment(Player& player_black, Player& player_white, int times);
+void ticRunEx(Player& p_x, Player& p_o, int times);
 
 int main()
-{
+{	
+	//Chesspiece p_x(1, string("x")), p_o(2, string("o"));
+
+
+	//{
+	//	//TicRandomPlayer p2(2, "0", p_o);
+	//	TicAMAFPlayer p1(1, "x", p_x, 1, NO_LIMITS, NO_LIMITS);
+	//	TicAIPlayer p2(2, "o", p_o, 1, NO_LIMITS, NO_LIMITS);
+	//	std::cout << "AMAF 1ms vs MCTS 1ms" << std::endl;
+	//	ticRunEx(p1, p2, 100);
+	//}
+	//{
+	//	//TicRandomPlayer p2(2, "0", p_o);
+	//	TicAMAFPlayer p1(1, "x", p_x, 2, NO_LIMITS, NO_LIMITS);
+	//	TicAIPlayer p2(2, "o", p_o, 2, NO_LIMITS, NO_LIMITS);
+	//	std::cout << "AMAF 2ms vs MCTS 2ms" << std::endl;
+	//	ticRunEx(p1, p2, 100);
+	//}
+	//{
+	//	//TicRandomPlayer p2(2, "0", p_o);
+	//	TicAMAFPlayer p1(1, "x", p_x, 5, NO_LIMITS, NO_LIMITS);
+	//	TicAIPlayer p2(2, "o", p_o, 5, NO_LIMITS, NO_LIMITS);
+	//	std::cout << "AMAF 5ms vs MCTS 5ms" << std::endl;
+	//	ticRunEx(p1, p2, 100);
+	//}
+	//{
+	//	//TicRandomPlayer p2(2, "0", p_o);
+	//	TicAMAFPlayer p1(1, "x", p_x, 10, NO_LIMITS, NO_LIMITS);
+	//	TicAIPlayer p2(2, "o", p_o, 10, NO_LIMITS, NO_LIMITS);
+	//	std::cout << "AMAF 10ms vs MCTS 10ms" << std::endl;
+	//	ticRunEx(p1, p2, 100);
+	//}
+	//{
+	//	//TicRandomPlayer p2(2, "0", p_o);
+	//	TicAMAFPlayer p1(1, "x", p_x, 50, NO_LIMITS, NO_LIMITS);
+	//	TicAIPlayer p2(2, "o", p_o, 50, NO_LIMITS, NO_LIMITS);
+	//	std::cout << "AMAF 50ms vs MCTS 50ms" << std::endl;
+	//	ticRunEx(p1, p2, 100);
+	//}
+	//{
+	//	//TicRandomPlayer p2(2, "0", p_o);
+	//	TicAMAFPlayer p1(1, "x", p_x, 100, NO_LIMITS, NO_LIMITS);
+	//	TicAIPlayer p2(2, "o", p_o, 100, NO_LIMITS, NO_LIMITS);
+	//	std::cout << "AMAF 100ms vs MCTS 100ms" << std::endl;
+	//	ticRunEx(p1, p2, 100);
+	//}
+
 	Chesspiece black_p(1, string("black")), white_p(2, string("white"));
+
+	{
+		// AMAF vs MCTS
+		cout << "AMAF vs MCTS" << endl;
+		AMAFPlayer p1(1, "player1", black_p, NO_LIMITS, 1000, 5);
+		AIPlayer p2(2, "player2", white_p, NO_LIMITS, 1000, 5);
+		runExperiment(p1, p2, 100);
+	}
+	
 
 	//// ramdom vs MCTS
 	//cout << "ramdom vs MCTS:" << endl;
@@ -104,22 +161,27 @@ int main()
 	//runExperiment(player_ai_2, player_ramdom_2, 100);
 
 	//MCTS 0.1
-	cout << "MCTS 0.1:" << endl;
-	AIPlayer player1_100ms(1, string("player1"), black_p, 100, NO_LIMITS, 5);
-	AIPlayer player2_100ms(2, string("player2"), white_p, 100, NO_LIMITS, 5);
-	runExperiment(player1_100ms, player2_100ms, 100);
+	/*cout << "MCTS 0.2:" << endl;
+	AIPlayer player1_200ms(1, string("player1"), black_p, 200, NO_LIMITS, 5);
+	AIPlayer player2_200ms(2, string("player2"), white_p, 200, NO_LIMITS, 5);
+	runExperiment(player1_200ms, player2_200ms, 100);
+
+	cout << "MCTS 0.5:" << endl;
+	AIPlayer player1_500ms(1, string("player1"), black_p, 500, NO_LIMITS, 5);
+	AIPlayer player2_500ms(2, string("player2"), white_p, 500, NO_LIMITS, 5);
+	runExperiment(player1_500ms, player2_500ms, 100);*/
 
 	//MCTS 1
-	cout << "MCTS 1:" << endl;
-	AIPlayer player1_1(1, string("player1"), black_p, 1000, NO_LIMITS, 5);
-	AIPlayer player2_1(2, string("player2"), white_p, 1000, NO_LIMITS, 5);
-	runExperiment(player1_1, player2_1, 100);
+	//cout << "MCTS 5:" << endl;
+	//AIPlayer player1_5(1, string("player1"), black_p, 5000, NO_LIMITS, 5);
+	//AIPlayer player2_5(2, string("player2"), white_p, 5000, NO_LIMITS, 5);
+	//runExperiment(player1_5, player2_5, 100);
 
 	//MCTS 10
-	cout << "MCTS 10:" << endl;
+	/*cout << "MCTS 10:" << endl;
 	AIPlayer player1_10(1, string("player1"), black_p, 10000, NO_LIMITS, 5);
 	AIPlayer player2_10(2, string("player2"), white_p, 10000, NO_LIMITS, 5);
-	runExperiment(player1_10, player2_10, 100);
+	runExperiment(player1_10, player2_10, 100);*/
 
 	return 0;
 }
@@ -189,4 +251,29 @@ void runExperiment(Player& player_black, Player& player_white, int times)
 		i++;
 	}
 	cout << "Black Win: " << statistics_b_win << " White Win: " << statistics_w_win << " Draw: " << statistics_draw << endl;
+}
+
+void ticRunEx(Player& p_x, Player& p_o, int times)
+{
+	int statistics_o_win = 0, statistics_x_win = 0, statistics_draw = 0;
+	for (int i = 0; i < times; i++)
+	{
+		Player* win_p = ticgame(p_x, p_o);
+		if (win_p == nullptr)
+		{
+			statistics_draw++;
+		}
+		else
+		{
+			if (win_p->id() == p_x.id())
+			{
+				statistics_x_win++;
+			}
+			else
+			{
+				statistics_o_win++;
+			}
+		}
+	}
+	std::cout << "x: " << statistics_x_win << " o: " << statistics_o_win << " draw: " << statistics_draw << std::endl;
 }
