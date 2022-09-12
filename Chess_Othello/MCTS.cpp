@@ -128,6 +128,7 @@ MCT::MCT(void* root_data, void(*delData)(void*))
 	this->delData = delData;
 }
 
+
 MCT::~MCT()
 {
 	del(root);
@@ -175,7 +176,7 @@ MCT::Ptr MCT::getRoot() const
 	return Ptr(*this, root, 1);
 }
 
-MCT::Ptr MCT::addChild(const MCT::Ptr& p, void* data, bool termination_flag)
+MCT::Ptr MCT::addChild(const MCT::Ptr& p, void* data, double value, bool termination_flag)
 {
 	if (p.mct.root != root)
 		throw("MCT::Ptr does not match!");
@@ -185,6 +186,7 @@ MCT::Ptr MCT::addChild(const MCT::Ptr& p, void* data, bool termination_flag)
 		Node* node = new Node;
 		node->MCTdata.data = data;
 		node->MCTdata.termination_flag = termination_flag;
+		node->MCTdata.value = value;
 		node->parent = p.n;
 		p.n->first_child = node;
 		node->bro = temp;
@@ -358,13 +360,13 @@ MCT::Ptr MCTS::search(int time_ms, int max_iterations, int max_step, int64_t* us
 				if (i.getLayer() < max_depth)
 				{
 					if (expansion(i)) //expansion
-						i = i.childIterator().get();
+						i = select(i);
 				}
 			}
 			else
 			{
 				if (expansion(i)) //expansion
-					i = i.childIterator().get();
+					i = select(i);
 			}
 		}
 		backup(i, rollout(i)); //rollout and backup

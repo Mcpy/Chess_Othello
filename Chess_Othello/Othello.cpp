@@ -452,10 +452,6 @@ double MCTSOthello::rollout(MCT::Ptr& p)
 	while (1)
 	{
 		Player* win_player = nullptr;
-		Player& player = oj.whoisNext();
-		int x = -1, y = -1;
-		player.chess(oj, &x, &y);
-		oj.chess(x, y);
 		if (oj.gameover(&win_player))
 		{
 			if (win_player == nullptr)
@@ -470,6 +466,10 @@ double MCTSOthello::rollout(MCT::Ptr& p)
 					return -1.0;
 			}
 		}
+		Player& player = oj.whoisNext();
+		int x = -1, y = -1;
+		player.chess(oj, &x, &y);
+		oj.chess(x, y);
 	}
 }
 
@@ -528,6 +528,8 @@ void AIPlayer::AIPlayer::chess(const Chessjudge& cj, int* x, int* y)
 	*y = temp_oj->last_chess[1];
 }
 
+
+
 void AIPlayer::init()
 {
 	if (mct != nullptr)
@@ -562,13 +564,6 @@ double AMAFOthello::rollout(MCT::Ptr& p)
 	while (1)
 	{
 		Player* win_player = nullptr;
-		Player& player = oj.whoisNext();
-		int x = -1, y = -1;
-		player.chess(oj, &x, &y);
-		if (oj.chess(x, y))
-		{
-			rollout_step[player.id() == player2->id()].emplace_back(x, y);
-		}
 		if (oj.gameover(&win_player))
 		{
 			if (win_player == nullptr)
@@ -582,6 +577,13 @@ double AMAFOthello::rollout(MCT::Ptr& p)
 				else
 					return -1.0;
 			}
+		}
+		Player& player = oj.whoisNext();
+		int x = -1, y = -1;
+		player.chess(oj, &x, &y);
+		if (oj.chess(x, y))
+		{
+			rollout_step[player.id() == player2->id()].emplace_back(x, y);
 		}
 	}
 }
@@ -683,10 +685,6 @@ void MCTSOthelloParallelisation::ThreadRollout::start()
 	while (1)
 	{
 		Player* win_player = nullptr;
-		Player& player = oj.whoisNext();
-		int x = -1, y = -1;
-		player.chess(oj, &x, &y);
-		oj.chess(x, y);
 		if (oj.gameover(&win_player))
 		{
 			if (win_player != nullptr)
@@ -698,6 +696,11 @@ void MCTSOthelloParallelisation::ThreadRollout::start()
 			}
 			break;
 		}
+		Player& player = oj.whoisNext();
+		int x = -1, y = -1;
+		player.chess(oj, &x, &y);
+		oj.chess(x, y);
+		
 	}
 }
 
@@ -791,6 +794,541 @@ void AIPlayer_Thread::chess(const Chessjudge& cj, int* x, int* y)
 }
 
 void AIPlayer_Thread::init()
+{
+	if (mct != nullptr)
+		delete mct;
+	if (mcts != nullptr)
+		delete mcts;
+
+	mct = nullptr;
+	mcts = nullptr;
+}
+
+void AIPlayer_Root_Para::merge()
+{
+	std::vector<MCT::Ptr>* player_mct = new std::vector<MCT::Ptr>[para_num];
+	for (int i = 0; i < para_num; i++)
+	{
+		auto& mct_list = player_mct[i];
+		mct_list.push_back(player_list[i].mct->getRoot());
+		for (int j = 0; j < mct_list.size(); j++)
+		{
+			
+			auto& ptr = mct_list[j];
+			for (auto iter = ptr.childIterator(); !iter.end(); iter.next())
+			{
+				player_mct[i].emplace_back(iter.get());
+			}
+		}
+	}
+	auto find_max_size = [&]() {
+		int max_size = 0;
+		for (int i = 0; i < para_num; i++)
+		{
+			if (player_mct[i].size() > max_size)
+				max_size = player_mct[i].size();
+		}
+		return max_size;
+	};
+	int max_size = find_max_size();
+	for (int n = 0; n < max_size; n++)
+	{
+
+		double score = 0, value = 0;
+		int total = 0;
+		for (int i = 0; i < para_num; i++)
+		{
+			auto& mct_list = player_mct[i];
+			if (n >= mct_list.size())
+				continue;
+			auto ptr = mct_list[n];
+			score += ptr->score;
+			total += ptr->total;
+			value += ptr->value;
+		}
+		for (int i = 0; i < para_num; i++)
+		{
+			auto& mct_list = player_mct[i];
+			if (n >= mct_list.size())
+				continue;
+			auto& ptr = mct_list[n];
+			ptr->score = score;
+			ptr->total = total;
+			ptr->value = value;
+		}
+	}
+	delete[] player_mct;
+	return;
+}
+
+AIPlayer_Root_Para::AIPlayer_Root_Para(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth, ThreadPool& tp, int para_num)
+	:Player(id, name, cp), time_ms(time_ms), iterations(iterations), max_depth(max_depth), tp(tp), para_num(para_num)
+{
+	last_time = 0;
+	last_iterations = 0;
+	for (int i = 0; i < para_num; i++)
+	{
+		player_list.emplace_back(id * 10 + i, name, cp, time_ms, iterations, max_depth);
+	}
+}
+
+
+void AIPlayer_Root_Para::chess(const Chessjudge& cj, int* x, int* y)
+{
+	std::vector<std::future<void>> ret;
+	for (auto& i:player_list)
+	{
+		ret.push_back(tp.pushTask(&AIPlayer_for_root::chess, &i, std::ref(cj), nullptr, nullptr));
+	}
+	for (auto& i : ret)
+	{
+		i.get();
+	}
+	merge();
+	player_list[0].chess_merge(x, y);
+}
+
+void AIPlayer_Root_Para::init()
+{
+	for (auto& i : player_list)
+	{
+		i.init();
+	}
+}
+
+MCTSOthello_Progressivebias::MCTSOthello_Progressivebias(MCT& mct)
+	:MCTSOthello(mct)
+{
+}
+
+double MCTSOthello_Progressivebias::selectFunction(MCT::Ptr& p) const
+{
+	MCT::Ptr root_ptr = mct.getRoot();
+	Othellojudge* root_oj = (Othellojudge*)root_ptr->data;
+	Othellojudge* p_oj = (Othellojudge*)p->data;
+	double heuristic_value = p->value / ((double)p->total + 1);
+	if (root_oj->whoisNext().id() == p_oj->last_player_id)
+	{
+		return p->total ? (p->score / p->total + 2 * sqrt(log(root_ptr->total) / p->total) + heuristic_value) : DBL_MAX;
+	}
+	else
+	{
+		return p->total ? (1.0 - p->score / p->total + 2 * sqrt(log(root_ptr->total) / p->total) + heuristic_value) : DBL_MAX;
+	}
+}
+
+bool MCTSOthello_Progressivebias::expansion(MCT::Ptr& p) const
+{
+	Othellojudge* oj = (Othellojudge*)p->data;
+	if (oj->gameover())
+	{
+		p->termination_flag = 1;
+		return 0;
+	}
+	else
+	{
+		auto ava_list = oj->getAvailability();
+		double max_heuristic = -DBL_MAX, min_heuristic = DBL_MAX;
+		auto update_max_min = [&max_heuristic, &min_heuristic](double heuristic) {
+			if (heuristic > max_heuristic)
+				max_heuristic = heuristic;
+			if (heuristic < min_heuristic)
+				min_heuristic = heuristic;
+		};
+		auto zero_one_standardization = [&](int scaling = 1, double bias = 0) {
+			bool set_zero_flag = 0;
+			bool minus_min_flag = 0;
+			double minus_min = 0;
+			if (max_heuristic == min_heuristic)
+				set_zero_flag = 1;
+			if (min_heuristic < 0)
+			{
+				minus_min_flag = 1;
+				minus_min = min_heuristic;
+				max_heuristic -= minus_min;
+				min_heuristic -= minus_min;
+			}
+			for (auto i = p.childIterator(); !i.end(); i.next())
+			{
+				auto j = i.get();
+				j->value = minus_min_flag ? j->value - minus_min : j->value;
+				//j->value = set_zero_flag ? 0 : ((j->value - min_heuristic) / (max_heuristic + min_heuristic)) * scaling + bias;
+				if (j->value < 0)
+					int aa = 0;
+			}
+		};
+		for (auto i = ava_list.begin(); i != ava_list.end(); i++)
+		{
+			Othellojudge* temp_oj = new Othellojudge(*oj);
+			int x = -1, y = -1;
+			i->coord(&x, &y);
+			if (!temp_oj->chess(x, y))
+				throw("unexpected error");
+			double heuristic_value = getHeuristic_fixedweights(*temp_oj);
+			update_max_min(heuristic_value);
+			mct.addChild(p, temp_oj, getHeuristic_fixedweights(*temp_oj));
+		}
+		zero_one_standardization(10, 0);
+		return 1;
+	}
+}
+
+double MCTSOthello_Progressivebias::getHeuristic(Othellojudge& oj) const
+{
+	//Player& max_player = ((Othellojudge*)mct.getRoot()->data)->whoisNext();
+	Player& max_player = oj.getPlayer(oj.last_player_id);
+	bool max_player_flag = (max_player.id()== player2->id());
+	Player& min_player = oj.getPlayer(!max_player_flag);
+	auto calValue = [](double max_player, double min_player)->double {return (max_player - min_player) / (max_player + min_player); };
+
+	// Coin Parity
+	int max_player_coins = oj.getPiecesNum(max_player_flag);
+	int min_player_coins = oj.getPiecesNum(!max_player_flag);
+	double coin_value = calValue(max_player_coins, min_player_coins);
+
+	Chessborad cb = oj.getBorad();
+	//0 max_player 1 min_player
+	auto getindex = [min_player](int piece_id)->bool {return piece_id == min_player.piece().id(); };
+	//Corners Captured
+	int player_corner[2] = { 0,0 };
+	int player_corner_potential[2] = { 0,0 };
+
+	auto isCorner = [&cb](int x, int y)->bool {
+		if ((x == 0 || x == (cb.getSize(1) - 1)) && (y == 0 || y == (cb.getSize(0) - 1)))
+			return 1;
+		else
+			return 0;
+	};
+
+	//Mobility
+	int actual_mobility[2] = { 0,0 };
+	int potential_mobility[2] = { 0,0 };
+	//Stability
+	int stable[2] = { 0,0 };
+	int semistable[2] = { 0,0 };
+	int unstable[2] = { 0,0 };
+
+	const int x_dir[] = { 1,1,0,-1,-1,-1,0,1 };
+	const int y_dir[] = { 0,1,1,1,0,-1,-1,-1 };
+	for (auto i = cb.begin(); !i.end(); i.next())
+	{
+		int x, y;
+		i.coord(&x, &y);
+
+		//Mobility 可落子和潜在可落子
+		if (cb.get(i) == 0)
+		{
+			for (int n = 0; n < 8; n++)
+			{
+				auto j(i);
+				const int dir[2] = { x_dir[n],y_dir[n] };
+				bool potential_mobility_flag[2] = { 0,0 };
+				bool actual_mobility_flag[2] = { 0,0 };
+				//它相邻是否有棋子
+				j.move(dir);
+				int near_piece_id = cb.get(j);
+				//如果没有则不可落子；
+				if (near_piece_id == 0 || near_piece_id == -1)
+					continue;
+				//否则向该方向遍历
+				else
+				{
+					for (j.move(dir); ; j.move(dir))
+					{
+						int p_id = cb.get(j);
+						if (p_id != near_piece_id)
+						{
+							//potential
+							if (p_id == 0)
+							{
+								// max 0 min 1
+								//保证计算一次;若是实际落子就不是潜在落子
+								if (potential_mobility_flag[!getindex(near_piece_id)] == 0 && actual_mobility_flag[!getindex(near_piece_id)] == 0)
+								{
+									potential_mobility[!getindex(near_piece_id)]++;
+									potential_mobility_flag[!getindex(near_piece_id)] = 1;
+								}
+							}
+							else if (p_id == -1)
+							{
+								break;
+							}
+							//actual
+							else
+							{
+								if (actual_mobility_flag[!getindex(near_piece_id)] == 0)
+								{
+									actual_mobility[!getindex(near_piece_id)]++;
+									actual_mobility_flag[!getindex(near_piece_id)] = 1;
+									if (potential_mobility_flag[!getindex(near_piece_id)] == 1)
+									{
+										potential_mobility[!getindex(near_piece_id)]--;
+										potential_mobility_flag[!getindex(near_piece_id)] = 0;
+									}
+								}
+								if (isCorner(x, y))
+									player_corner_potential[!getindex(near_piece_id)]++;
+							}
+							break;
+						}
+					}
+				}
+				if (actual_mobility_flag[0] && actual_mobility_flag[1])
+					break;
+			}
+		}
+		//Mobility 永不被翻\可被翻\将被翻
+		else
+		{
+			int piece_id = cb.get(i);
+			if (isCorner(x, y))
+			{
+				player_corner[getindex(piece_id)]++;
+				stable[getindex(piece_id)]++;
+			}
+			else
+			{
+				int stable_dir = 0;
+				bool unstable_flag = 0;
+				for (int n = 0; n < 4; n++)
+				{
+					int dir[2] = { x_dir[n],y_dir[n] };
+					int r_dir[2] = { -x_dir[n],-y_dir[n] };
+					int current_p_id = piece_id, r_current_p_id = piece_id;
+					auto j(i);
+					//向一个方向遍历
+					for (j.move(dir);; j.move(dir))
+					{
+						current_p_id = cb.get(j);
+						if (current_p_id != piece_id)
+							break;
+					}
+					//该方向稳定 continue
+					if (current_p_id == -1)
+					{
+						stable_dir++;
+						continue;
+					}
+					//不稳定向另一个方向遍历
+					else
+					{
+						auto k(i);
+						for (k.move(r_dir);; k.move(r_dir))
+						{
+							r_current_p_id = cb.get(k);
+							if (r_current_p_id != piece_id)
+								break;
+						}
+						//另一个方向稳定continue
+						if (r_current_p_id == -1)
+						{
+							stable_dir++;
+							continue;
+						}
+						//另一个方向不稳定
+						else
+						{
+							//两边都没对方棋子，该方向可被翻；但无法确定是否将被翻，还需遍历其他方向
+							if (current_p_id == 0 && r_current_p_id == 0)
+							{
+								continue;
+							}
+							//一边为空一边为对方棋子，将被翻
+							else
+							{
+								unstable[getindex(piece_id)]++;
+								unstable_flag = 1;
+								break;
+							}
+						}
+					}
+				}
+				if (!unstable_flag)
+				{
+					//4个方向都稳定，不可被翻
+					if(stable_dir == 4)
+						stable[getindex(piece_id)]++;
+					else
+						semistable[getindex(piece_id)]++;
+				}
+			}
+		}
+	}
+
+	// get Heuristic value
+
+	//Mobility
+	double actual_mobility_value = actual_mobility[0] + actual_mobility[1] != 0 ? calValue(actual_mobility[0], actual_mobility[1]) : 0;
+	double potential_mobility_value = potential_mobility[0] + potential_mobility[1] != 0 ? calValue(potential_mobility[0], potential_mobility[1]) : 0;
+	//Corners Captured
+	//corners captured 2; potential corners 1;
+	int corner_sum[2] = { player_corner[0] * 2 + player_corner_potential[0],player_corner[1] * 2 + player_corner_potential[1] };
+	double corner_value = corner_sum[0] + corner_sum[1] != 0 ? calValue(corner_sum[0], corner_sum[1]) : 0;
+	//Stability
+	// 1 for stable coins, -1 for unstable coins and 0 for semi - stable coins
+	int stable_sum[2] = { stable[0] - unstable[0],stable[1] - unstable[1] };
+	double stable_value = stable_sum[0] + stable_sum[1] != 0 ? calValue(stable_sum[0], stable_sum[1]) : 0;
+
+	//weight
+	//corner 30/90; mobility 5/90; stability 25/90; coin 25/90
+
+	double heuristic_value = (30 * corner_value + 5 * (actual_mobility_value + potential_mobility_value) + 25 * stable_value + 25 * coin_value)/90;
+	return heuristic_value;
+
+}
+
+double MCTSOthello_Progressivebias::getHeuristic_fixedweights(Othellojudge& oj) const
+{
+	double heuristic_value = 0;
+	Player& max_player = oj.getPlayer(oj.last_player_id);
+	//bool max_player_flag = (max_player.id() == player2->id());
+	//Player& min_player = oj.getPlayer(!max_player_flag);
+	const double fixed_weights[8][8] = {
+		{1.0,-0.25,0.1,0.05,0.05,0.1,-0.25,1.0},
+		{-0.25,-0.25,0.01,0.01,0.01,0.01,-0.25,-0.25},
+		{0.1,0.01,0.05,0.02,0.02,0.05,0.01,0.1},
+		{0.05,0.01,0.02,0.01,0.01,0.02,0.01,0.05},
+		{0.05,0.01,0.02,0.01,0.01,0.02,0.01,0.05},
+		{0.1,0.01,0.05,0.02,0.02,0.05,0.01,0.1},
+		{-0.25,-0.25,0.01,0.01,0.01,0.01,-0.25,-0.25},
+		{1.0,-0.25,0.1,0.05,0.05,0.1,-0.25,1.0}
+	};
+	Chessborad cb = oj.getBorad();
+	int max_player_piece_id = max_player.piece().id();
+	for (auto i = cb.begin(); !i.end(); i.next())
+	{
+		int piece_id = cb.get(i);
+		if (piece_id != 0)
+		{
+			int x, y;
+			i.coord(&x, &y);
+			if (piece_id == max_player_piece_id)
+				heuristic_value += fixed_weights[x][y];
+			else
+				heuristic_value -= fixed_weights[x][y];
+		}
+	}
+	return heuristic_value;
+}
+
+AIplayer_Progressivebias::AIplayer_Progressivebias(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth)
+	:Player(id, name, cp), time_ms(time_ms), iterations(iterations)
+{
+	last_iterations = 0;
+	last_time = 0;
+	this->max_depth = max_depth;
+	mct = nullptr;
+	mcts = nullptr;
+}
+
+AIplayer_Progressivebias::~AIplayer_Progressivebias()
+{
+	if (mct != nullptr)
+		delete mct;
+	if (mcts != nullptr)
+		delete mcts;
+}
+
+void AIplayer_Progressivebias::chess(const Chessjudge& cj, int* x, int* y)
+{
+
+	if (mct == nullptr)
+	{
+		Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+		mct = new MCT((void*)root_oj, deldata);
+		mcts = new MCTSOthello_Progressivebias(*mct);
+	}
+	else
+	{
+		auto ptr = mct->find(&cj, findFunc); //寻找节点，继承已经迭代的数据
+		if (ptr.valid())
+		{
+			mct->changeRoot(ptr);
+		}
+		else // 没有节点 重新建立树
+		{
+			init();
+			Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+			mct = new MCT((void*)root_oj, deldata);
+			mcts = new MCTSOthello_Progressivebias(*mct);
+		}
+	}
+	auto ptr = mcts->search(time_ms, iterations, max_depth, &last_time, &last_iterations);
+	Othellojudge* temp_oj = (Othellojudge*)ptr->data;
+	*x = temp_oj->last_chess[0];
+	*y = temp_oj->last_chess[1];
+	mct->changeRoot(ptr);
+}
+
+void AIplayer_Progressivebias::init()
+{
+	if (mct != nullptr)
+		delete mct;
+	if (mcts != nullptr)
+		delete mcts;
+
+	mct = nullptr;
+	mcts = nullptr;
+}
+
+AIPlayer_for_root::AIPlayer_for_root(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth)
+	:AIPlayer(id,name,cp,time_ms,iterations,max_depth)
+{
+}
+
+void AIPlayer_for_root::chess(const Chessjudge& cj, int* x, int* y)
+{
+	if (mct == nullptr)
+	{
+		Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+		mct = new MCT((void*)root_oj, deldata);
+		mcts = new MCTSOthello(*mct);
+	}
+	else
+	{
+		auto ptr = mct->find(&cj, findFunc); //寻找节点，继承已经迭代的数据
+		if (ptr.valid())
+		{
+			mct->changeRoot(ptr);
+		}
+		else // 没有节点 重新建立树
+		{
+			init();
+			Othellojudge* root_oj = new Othellojudge(*(dynamic_cast<const Othellojudge*>(&cj)));
+			mct = new MCT((void*)root_oj, deldata);
+			mcts = new MCTSOthello(*mct);
+		}
+	}
+	auto ptr = mcts->search(time_ms, iterations, max_depth, &last_time, &last_iterations);
+	//mct->changeRoot(ptr);
+	if (x != nullptr && y != nullptr)
+	{
+		Othellojudge* temp_oj = (Othellojudge*)ptr->data;
+		*x = temp_oj->last_chess[0];
+		*y = temp_oj->last_chess[1];
+	}
+}
+
+void AIPlayer_for_root::chess_merge(int* x, int* y)
+{
+	int max_total = -1;
+	auto max_p = mct->getRoot().childIterator().get();
+	for (auto i = mct->getRoot().childIterator(); !i.end(); i.next())
+	{
+		auto ptr = i.get();
+		if (ptr->total > max_total)
+		{
+			max_total = ptr->total;
+			max_p = ptr;
+		}
+	}
+	Othellojudge* temp_oj = (Othellojudge*)max_p->data;
+	mct->changeRoot(max_p);
+	*x = temp_oj->last_chess[0];
+	*y = temp_oj->last_chess[1];
+}
+
+void AIPlayer_for_root::init()
 {
 	if (mct != nullptr)
 		delete mct;

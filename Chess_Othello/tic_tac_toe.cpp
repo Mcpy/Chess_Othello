@@ -127,6 +127,7 @@ void TicRandomPlayer::chess(const Chessjudge& tj, int* x, int* y)
 	}
 }
 
+
 MCTSTic::MCTSTic(MCT& mct)
 	:MCTS(mct)
 {

@@ -89,6 +89,16 @@ public:
 	double rollout(MCT::Ptr& p);
 };
 
+class MCTSOthello_Progressivebias :public MCTSOthello
+{
+public:
+	MCTSOthello_Progressivebias(MCT& mct);
+	double selectFunction(MCT::Ptr& p) const override;
+	bool expansion(MCT::Ptr& p) const override;
+	double getHeuristic(Othellojudge& oj) const;
+	double getHeuristic_fixedweights(Othellojudge& oj)const;
+};
+
 class MCTSOthelloParallelisation :public MCTSOthello
 {
 public:
@@ -143,10 +153,59 @@ public:
 	int last_iterations;
 	AIPlayer(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth);
 	~AIPlayer();
+	void chess(const Chessjudge& cj, int* x, int* y) override;
+	void init();
+};
+
+
+
+class AIPlayer_for_root :public AIPlayer
+{
+public:
+	AIPlayer_for_root(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth);
+	void chess(const Chessjudge& cj, int* x = nullptr, int* y = nullptr) override;
+	void chess_merge(int* x, int* y);
+	void init();
+	friend class AIPlayer_Root_Para;
+};
+
+class AIplayer_Progressivebias :public Player
+{
+protected:
+	int64_t time_ms;
+	int iterations;
+	int max_depth;
+	MCT* mct;
+	MCTSOthello_Progressivebias* mcts;
+public:
+	int64_t last_time;
+	int last_iterations;
+	AIplayer_Progressivebias(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth);
+	~AIplayer_Progressivebias();
 	void chess(const Chessjudge& cj, int* x, int* y);
 	void init();
 };
 
+//root
+class AIPlayer_Root_Para :public Player
+{
+protected:
+	int64_t time_ms;
+	int iterations;
+	int max_depth;
+	ThreadPool& tp;
+	int para_num;
+	std::vector<AIPlayer_for_root> player_list;
+	void merge();
+public:
+	int64_t last_time;
+	int last_iterations;
+	AIPlayer_Root_Para(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth, ThreadPool& tp, int para_num);
+	void chess(const Chessjudge& cj, int* x, int* y); //////////////////////////////////////////////
+	void init();
+};
+
+//leaf
 class AIPlayer_Thread :public Player
 {
 protected:

@@ -36,12 +36,14 @@ public:
 			void* data;
 			int total;
 			double score;
+			double value;
 			bool termination_flag;
 			_MCTData()
 			{
 				data = nullptr;
 				total = 0;
 				score = 0;
+				value = 0;
 				termination_flag = 0;
 			}
 		} MCTdata;
@@ -102,7 +104,7 @@ public:
 	int getNodeNum() const;
 	int getDepth() const;
 	Ptr getRoot() const;
-	Ptr addChild(const Ptr& p, void* data, bool termination_flag = 0);
+	Ptr addChild(const Ptr& p, void* data, double value = 0, bool termination_flag = 0);
 	Ptr find(const void* data, bool(*findFunc)(const void*, const void*)) const;
 	void del(Ptr& p);
 	void changeRoot(const Ptr& p);

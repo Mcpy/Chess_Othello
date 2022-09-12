@@ -4,7 +4,7 @@
 #include<iostream>
 using namespace std;
 
-int main_game()
+int main()
 {
 	const int window_size[] = { 1280,720 };
 
@@ -19,19 +19,22 @@ int main_game()
 
 	const int borad_size[] = { 8,8 };
 
-
+	ThreadPool tp(20, 30, 10, 60);
 
 	Chessborad cb(borad_size[0], borad_size[1]);
 	Chesspiece black_p(1, string("black")),white_p(2,string("white"));
-	//HumanPlayer player1(1, string("player1"), black_p, borad_left_top, borad_right_bottom, borad_size);
-	RandomPlayer player1(1, string("player1"), black_p);
+	HumanPlayer player1(1, string("player1"), black_p, borad_left_top, borad_right_bottom, borad_size);
+	//RandomPlayer player1(1, string("player1"), black_p);
+	//AIPlayer player1(1, string("player1"), black_p, 100, NO_LIMITS, NO_LIMITS);
 	//HumanPlayer player2(2, string("player2"), white_p, borad_left_top, borad_right_bottom, borad_size);
 	//RandomPlayer player2(2, string("player2"), white_p);
-	AIPlayer player2(2, string("player2"), white_p, 1000, NO_LIMITS, 5);
+	//AIPlayer player2(2, string("player2"), black_p, 100, NO_LIMITS, NO_LIMITS);
+	AIPlayer_Thread player2(2, string("player2"), white_p, 1000, NO_LIMITS, 5, tp, 10);
+	//AIplayer_Progressivebias player2(2, string("player2"), white_p, NO_LIMITS, 1000, 5);
 	Othellojudge oj(cb, player1, player2);
 
 	//display
-	Window window(window_size[0], window_size[1], EW_SHOWCONSOLE);
+	Window window(window_size[0], window_size[1]);
 	setbkcolor(RGB(195, 170, 135));
 	setlinecolor(RGB(50, 50, 50));
 	cleardevice();
@@ -41,6 +44,7 @@ int main_game()
 	window.draw(dsp_o);
 	window.draw(black_msg);
 	window.draw(white_msg);
+
 
 	while (1)
 	{
@@ -80,7 +84,6 @@ int main_game()
 			white_msg.set(string("White: 2"));
 			window.reflash();
 		}
-		
 	}
 	return 0;
 }
@@ -89,63 +92,162 @@ int experiment(Player& player_black, Player& player_white);
 void runExperiment(Player& player_black, Player& player_white, int times);
 void ticRunEx(Player& p_x, Player& p_o, int times);
 
-int main()
+int main_ex()
 {	
 	Chesspiece p_x(1, string("x")), p_o(2, string("o"));
 
 
-	//{
-	//	//TicRandomPlayer p2(2, "0", p_o);
-	//	TicAMAFPlayer p1(1, "x", p_x, 1, NO_LIMITS, NO_LIMITS);
-	//	TicAIPlayer p2(2, "o", p_o, 1, NO_LIMITS, NO_LIMITS);
-	//	std::cout << "AMAF 1ms vs MCTS 1ms" << std::endl;
-	//	ticRunEx(p1, p2, 100);
-	//}
-	//{
-	//	//TicRandomPlayer p2(2, "0", p_o);
-	//	TicAMAFPlayer p1(1, "x", p_x, 2, NO_LIMITS, NO_LIMITS);
-	//	TicAIPlayer p2(2, "o", p_o, 2, NO_LIMITS, NO_LIMITS);
-	//	std::cout << "AMAF 2ms vs MCTS 2ms" << std::endl;
-	//	ticRunEx(p1, p2, 100);
-	//}
-	//{
-	//	//TicRandomPlayer p2(2, "0", p_o);
-	//	TicAMAFPlayer p1(1, "x", p_x, 5, NO_LIMITS, NO_LIMITS);
-	//	TicAIPlayer p2(2, "o", p_o, 5, NO_LIMITS, NO_LIMITS);
-	//	std::cout << "AMAF 5ms vs MCTS 5ms" << std::endl;
-	//	ticRunEx(p1, p2, 100);
-	//}
-	//{
-	//	//TicRandomPlayer p2(2, "0", p_o);
-	//	TicAMAFPlayer p1(1, "x", p_x, 10, NO_LIMITS, NO_LIMITS);
-	//	TicAIPlayer p2(2, "o", p_o, 10, NO_LIMITS, NO_LIMITS);
-	//	std::cout << "AMAF 10ms vs MCTS 10ms" << std::endl;
-	//	ticRunEx(p1, p2, 100);
-	//}
-	//{
-	//	//TicRandomPlayer p2(2, "0", p_o);
-	//	TicAMAFPlayer p1(1, "x", p_x, 50, NO_LIMITS, NO_LIMITS);
-	//	TicAIPlayer p2(2, "o", p_o, 50, NO_LIMITS, NO_LIMITS);
-	//	std::cout << "AMAF 50ms vs MCTS 50ms" << std::endl;
-	//	ticRunEx(p1, p2, 100);
-	//}
-	//{
-	//	//TicRandomPlayer p2(2, "0", p_o);
-	//	TicAMAFPlayer p1(1, "x", p_x, 100, NO_LIMITS, NO_LIMITS);
-	//	TicAIPlayer p2(2, "o", p_o, 100, NO_LIMITS, NO_LIMITS);
-	//	std::cout << "AMAF 100ms vs MCTS 100ms" << std::endl;
-	//	ticRunEx(p1, p2, 100);
-	//}
+	{
+		//TicRandomPlayer p2(2, "0", p_o);
+		TicAMAFPlayer p1(1, "x", p_x, 1, NO_LIMITS, NO_LIMITS);
+		TicAIPlayer p2(2, "o", p_o, 1, NO_LIMITS, NO_LIMITS);
+		std::cout << "AMAF 1ms vs MCTS 1ms" << std::endl;
+		ticRunEx(p1, p2, 100);
+	}
+	{
+		//TicRandomPlayer p2(2, "0", p_o);
+		TicAMAFPlayer p1(1, "x", p_x, 2, NO_LIMITS, NO_LIMITS);
+		TicAIPlayer p2(2, "o", p_o, 2, NO_LIMITS, NO_LIMITS);
+		std::cout << "AMAF 2ms vs MCTS 2ms" << std::endl;
+		ticRunEx(p1, p2, 100);
+	}
+	{
+		//TicRandomPlayer p2(2, "0", p_o);
+		TicAMAFPlayer p1(1, "x", p_x, 5, NO_LIMITS, NO_LIMITS);
+		TicAIPlayer p2(2, "o", p_o, 5, NO_LIMITS, NO_LIMITS);
+		std::cout << "AMAF 5ms vs MCTS 5ms" << std::endl;
+		ticRunEx(p1, p2, 100);
+	}
+	{
+		//TicRandomPlayer p2(2, "0", p_o);
+		TicAMAFPlayer p1(1, "x", p_x, 10, NO_LIMITS, NO_LIMITS);
+		TicAIPlayer p2(2, "o", p_o, 10, NO_LIMITS, NO_LIMITS);
+		std::cout << "AMAF 10ms vs MCTS 10ms" << std::endl;
+		ticRunEx(p1, p2, 100);
+	}
+	{
+		//TicRandomPlayer p2(2, "0", p_o);
+		TicAMAFPlayer p1(1, "x", p_x, 50, NO_LIMITS, NO_LIMITS);
+		TicAIPlayer p2(2, "o", p_o, 50, NO_LIMITS, NO_LIMITS);
+		std::cout << "AMAF 50ms vs MCTS 50ms" << std::endl;
+		ticRunEx(p1, p2, 100);
+	}
+	{
+		//TicRandomPlayer p2(2, "0", p_o);
+		TicAMAFPlayer p1(1, "x", p_x, 100, NO_LIMITS, NO_LIMITS);
+		TicAIPlayer p2(2, "o", p_o, 100, NO_LIMITS, NO_LIMITS);
+		std::cout << "AMAF 100ms vs MCTS 100ms" << std::endl;
+		ticRunEx(p1, p2, 100);
+	}
 
 	Chesspiece black_p(1, string("black")), white_p(2, string("white"));
 
-	//{
-	//	// AMAF vs MCTS
-	//	cout << "AMAF vs MCTS" << endl;
-	//	AMAFPlayer p1(1, "player1", black_p, 1000, NO_LIMITS, 5);
-	//	AIPlayer p2(2, "player2", white_p, 1000, NO_LIMITS, 5);
-	//	runExperiment(p1, p2, 100);
-	//}
+	//verify
+	{
+		//MCTS(0.1) vs MCTS(1)
+		std::cout << "MCTS(0.1) vs MCTS(1)" << std::endl;
+		AIPlayer p1(1, "p1", black_p, 100, NO_LIMITS, 5);
+		AIPlayer p2(2, "p2", white_p, 1000, NO_LIMITS, 5);
+		runExperiment(p1, p2, 20);
+	}
+	{
+		//MCTS(0.5) vs MCTS(1)
+		std::cout << "MCTS(0.5) vs MCTS(1)" << std::endl;
+		AIPlayer p1(1, "p1", black_p, 500, NO_LIMITS, 5);
+		AIPlayer p2(2, "p2", white_p, 1000, NO_LIMITS, 5);
+		runExperiment(p1, p2, 20);
+	}
+	{
+		//MCTS(1) vs MCTS(2)
+		std::cout << "MCTS(1) vs MCTS(2)" << std::endl;
+		AIPlayer p1(1, "p1", black_p, 1000, NO_LIMITS, 5);
+		AIPlayer p2(2, "p2", white_p, 2000, NO_LIMITS, 5);
+		runExperiment(p1, p2, 20);
+	}
+	{
+		//MCTS(2) vs MCTS(4)
+		std::cout << "MCTS(2) vs MCTS(4)" << std::endl;
+		AIPlayer p1(1, "p1", black_p, 2000, NO_LIMITS, 5);
+		AIPlayer p2(2, "p2", white_p, 4000, NO_LIMITS, 5);
+		runExperiment(p1, p2, 20);
+	}
+	{
+		//MCTS(4) vs MCTS(8)
+		std::cout << "MCTS(4) vs MCTS(8)" << std::endl;
+		AIPlayer p1(1, "p1", black_p, 4000, NO_LIMITS, 5);
+		AIPlayer p2(2, "p2", white_p, 8000, NO_LIMITS, 5);
+		runExperiment(p1, p2, 20);
+	}
+	// Thread
+	{
+		ThreadPool tp(20, 30, 10, 60);
+		// 5,10,15,20//leaf/root
+		{
+			//MCTS_root(5,1) vs MCTS(1)
+			std::cout << "MCTS_root(5,1) vs MCTS(1)" << std::endl;
+			//AIPlayer p1(1, "p1", black_p, 1000, NO_LIMITS, 5);
+			AIPlayer_Root_Para p1(1, "p1", black_p, 1000, NO_LIMITS, 5, tp, 5);
+			AIPlayer p2(2, "p2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 10);
+		}
+		{
+			//MCTS_root(10,1) vs MCTS(1)
+			std::cout << "MCTS_root(10,1) vs MCTS(1)" << std::endl;
+			AIPlayer_Root_Para p1(1, "p1", black_p, 1000, NO_LIMITS, 5, tp, 10);
+			AIPlayer p2(2, "p2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 20);
+		}
+		{
+			//MCTS_root(15,1) vs MCTS(1)
+			std::cout << "MCTS_root(15,1) vs MCTS(1)" << std::endl;
+			AIPlayer_Root_Para p1(1, "p1", black_p, 1000, NO_LIMITS, 5, tp, 15);
+			AIPlayer p2(2, "p2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 20);
+		}
+		{
+			//MCTS_root(20,1) vs MCTS(1)
+			std::cout << "MCTS_root(20,1) vs MCTS(1)" << std::endl;
+			AIPlayer_Root_Para p1(1, "p1", black_p, 1000, NO_LIMITS, 5, tp, 20);
+			AIPlayer p2(2, "p2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 20);
+		}
+		{
+			//MCTS_leaf(5,1) vs MCTS(1)
+			std::cout << "MCTS_leaf(5,1) vs MCTS(1)" << std::endl;
+			AIPlayer_Thread p1(1, "p1", black_p, 1000, NO_LIMITS, 5, tp, 5);
+			AIPlayer p2(2, "p2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 100);
+		}
+		{
+			//MCTS_leaf(10,1) vs MCTS(1)
+			std::cout << "MCTS_leaf(10,1) vs MCTS(1)" << std::endl;
+			AIPlayer_Thread p1(1, "p1", black_p, 1000, NO_LIMITS, 5, tp, 10);
+			AIPlayer p2(2, "p2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 100);
+		}
+		{
+			//MCTS_leaf(15,1) vs MCTS(1)
+			std::cout << "MCTS_leaf(15,1) vs MCTS(1)" << std::endl;
+			AIPlayer_Thread p1(1, "p1", black_p, 1000, NO_LIMITS, 5, tp, 15);
+			AIPlayer p2(2, "p2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 100);
+		}
+		{
+			//MCTS_leaf(20,1) vs MCTS(1)
+			std::cout << "MCTS_leaf(20,1) vs MCTS(1)" << std::endl;
+			AIPlayer_Thread p1(1, "p1", black_p, 1000, NO_LIMITS, 5, tp, 20);
+			AIPlayer p2(2, "p2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 100);
+		}
+	}
+
+	{
+		// AMAF vs MCTS
+		cout << "AMAF vs MCTS" << endl;
+		AMAFPlayer p1(1, "player1", black_p, 1000, NO_LIMITS, 5);
+		AIPlayer p2(2, "player2", white_p, 1000, NO_LIMITS, 5);
+		runExperiment(p1, p2, 100);
+	}
 
 	//para
 	{
@@ -176,40 +278,42 @@ int main()
 		}
 	}
 
-	//// ramdom vs MCTS
-	//cout << "ramdom vs MCTS:" << endl;
-	//RandomPlayer player_ramdom_1(1, string("player1"), black_p);
+	// ramdom vs MCTS_Progressivebias
+	cout << "ramdom vs MCTS_Progressivebias:" << endl;
+	RandomPlayer player_ramdom_1(1, string("player1"), black_p);
 	//AIPlayer player_ai_1(2, string("player2"), white_p, 1000, NO_LIMITS, 5);
-	//runExperiment(player_ramdom_1, player_ai_1, 100);
+	AIplayer_Progressivebias player_ai_1(2, string("player2"), white_p, 1000, NO_LIMITS, 5);
+	runExperiment(player_ramdom_1, player_ai_1, 0);
 
-	////MCTS vs random
-	//cout << "MCTS vs random:" << endl;
-	//AIPlayer player_ai_2(1, string("player1"), black_p, 1000, NO_LIMITS, 5);
+	//MCTS vs MCTS_Progressivebias
+	cout << "MCTS vs MCTS_Progressivebias:" << endl;
+	AIPlayer player_ai_2(1, string("player1"), black_p, 1000, NO_LIMITS, NO_LIMITS);
 	//RandomPlayer player_ramdom_2(2, string("player2"), white_p);
-	//runExperiment(player_ai_2, player_ramdom_2, 100);
+	AIplayer_Progressivebias player_ai_p_2(2, string("player2"), white_p, 1000, NO_LIMITS, NO_LIMITS);
+	runExperiment(player_ai_2, player_ai_p_2, 20);
 
 	//MCTS 0.1
-	/*cout << "MCTS 0.2:" << endl;
+	cout << "MCTS 0.2:" << endl;
 	AIPlayer player1_200ms(1, string("player1"), black_p, 200, NO_LIMITS, 5);
 	AIPlayer player2_200ms(2, string("player2"), white_p, 200, NO_LIMITS, 5);
 	runExperiment(player1_200ms, player2_200ms, 100);
 
-	cout << "MCTS 0.5:" << endl;
+	//cout << "MCTS 0.5:" << endl;
 	AIPlayer player1_500ms(1, string("player1"), black_p, 500, NO_LIMITS, 5);
 	AIPlayer player2_500ms(2, string("player2"), white_p, 500, NO_LIMITS, 5);
-	runExperiment(player1_500ms, player2_500ms, 100);*/
+	runExperiment(player1_500ms, player2_500ms, 100);
 
 	//MCTS 1
-	//cout << "MCTS 5:" << endl;
-	//AIPlayer player1_5(1, string("player1"), black_p, 5000, NO_LIMITS, 5);
-	//AIPlayer player2_5(2, string("player2"), white_p, 5000, NO_LIMITS, 5);
-	//runExperiment(player1_5, player2_5, 100);
+	cout << "MCTS 5:" << endl;
+	AIPlayer player1_5(1, string("player1"), black_p, 5000, NO_LIMITS, 5);
+	AIPlayer player2_5(2, string("player2"), white_p, 5000, NO_LIMITS, 5);
+	runExperiment(player1_5, player2_5, 100);
 
 	//MCTS 10
-	/*cout << "MCTS 10:" << endl;
+	cout << "MCTS 10:" << endl;
 	AIPlayer player1_10(1, string("player1"), black_p, 10000, NO_LIMITS, 5);
 	AIPlayer player2_10(2, string("player2"), white_p, 10000, NO_LIMITS, 5);
-	runExperiment(player1_10, player2_10, 100);*/
+	runExperiment(player1_10, player2_10, 100);
 
 	return 0;
 }
@@ -236,6 +340,8 @@ int experiment(Player& player_black, Player& player_white)
 			}
 			else
 			{
+				if (win_player->id() == 1)
+					int a = 1;////////////////////////
 				return win_player->id();
 			}
 		}
