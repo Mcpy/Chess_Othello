@@ -6,6 +6,7 @@
 #include<vector>
 #include<ctime>
 #include<cmath>
+#include<random>
 
 #define BLACKPIECE false
 #define WHITEPIECE true
@@ -67,6 +68,10 @@ public:
 
 class RandomPlayer :public Player
 {
+protected:
+	std::random_device rd;
+	std::mt19937 gen;
+	std::uniform_int_distribution<int> distrib;
 public:
 	RandomPlayer(int id, std::string name, Chesspiece& cp);
 	void chess(const Chessjudge& oj, int* x, int* y);
@@ -87,7 +92,7 @@ public:
 class MCTSOthelloParallelisation :public MCTSOthello
 {
 public:
-	class ThreadRollout :public ThreadTask
+	class ThreadRollout
 	{
 	private:
 		MCT::Ptr& p;
@@ -104,6 +109,7 @@ protected:
 public:
 	MCTSOthelloParallelisation(MCT& mct, ThreadPool& tp,int thread_num);
 	double rollout(MCT::Ptr& p);
+	void backup(MCT::Ptr& p, double score);
 };
 
 class AMAFOthello :public MCTSOthello

@@ -91,7 +91,7 @@ void ticRunEx(Player& p_x, Player& p_o, int times);
 
 int main()
 {	
-	//Chesspiece p_x(1, string("x")), p_o(2, string("o"));
+	Chesspiece p_x(1, string("x")), p_o(2, string("o"));
 
 
 	//{
@@ -139,14 +139,42 @@ int main()
 
 	Chesspiece black_p(1, string("black")), white_p(2, string("white"));
 
+	//{
+	//	// AMAF vs MCTS
+	//	cout << "AMAF vs MCTS" << endl;
+	//	AMAFPlayer p1(1, "player1", black_p, 1000, NO_LIMITS, 5);
+	//	AIPlayer p2(2, "player2", white_p, 1000, NO_LIMITS, 5);
+	//	runExperiment(p1, p2, 100);
+	//}
+
+	//para
 	{
-		// AMAF vs MCTS
-		cout << "AMAF vs MCTS" << endl;
-		AMAFPlayer p1(1, "player1", black_p, NO_LIMITS, 1000, 5);
-		AIPlayer p2(2, "player2", white_p, NO_LIMITS, 1000, 5);
-		runExperiment(p1, p2, 100);
+		ThreadPool tp(20, 30, 25, 60);
+		{
+			cout << "MCTS PARALLEL(5) vs MCTS(5)" << endl;
+			AIPlayer_Thread p1(1, "player1", black_p, 1000, NO_LIMITS, 5, tp, 5);
+			AIPlayer p2(2, "player2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 10);
+		}
+		{
+			cout << "MCTS PARALLEL(10) vs MCTS(10)" << endl;
+			AIPlayer_Thread p1(1, "player1", black_p, 1000, NO_LIMITS, 5, tp, 10);
+			AIPlayer p2(2, "player2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 10);
+		}
+		{
+			cout << "MCTS PARALLEL(15) vs MCTS(15)" << endl;
+			AIPlayer_Thread p1(1, "player1", black_p, 1000, NO_LIMITS, 5, tp, 15);
+			AIPlayer p2(2, "player2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 10);
+		}
+		{
+			cout << "MCTS PARALLEL(20) vs MCTS(20)" << endl;
+			AIPlayer_Thread p1(1, "player1", black_p, 1000, NO_LIMITS, 5, tp, 20);
+			AIPlayer p2(2, "player2", white_p, 1000, NO_LIMITS, 5);
+			runExperiment(p1, p2, 10);
+		}
 	}
-	
 
 	//// ramdom vs MCTS
 	//cout << "ramdom vs MCTS:" << endl;

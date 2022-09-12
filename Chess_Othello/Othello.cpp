@@ -372,7 +372,7 @@ void HumanPlayer::p2b(int p_x, int p_y, int* b_x, int* b_y) const
 
 //RandomPlayer
 
-RandomPlayer::RandomPlayer(int id, std::string name, Chesspiece& cp) :Player(id, name, cp) {}
+RandomPlayer::RandomPlayer(int id, std::string name, Chesspiece& cp) :Player(id, name, cp), gen(rd()), distrib(0) {}
 
 void RandomPlayer::chess(const Chessjudge& oj, int* x, int* y)
 {
@@ -384,8 +384,7 @@ void RandomPlayer::chess(const Chessjudge& oj, int* x, int* y)
 	}
 	else
 	{
-		srand(time(0));
-		ava.at(rand() % ava.size()).coord(x, y);
+		ava.at(distrib(gen) % ava.size()).coord(x, y);
 	}
 }
 
@@ -608,7 +607,7 @@ void AMAFOthello::backup(MCT::Ptr& p, double score)
 			}
 		}
 	}
-	for (auto i : rollout_step)
+	for (auto& i : rollout_step)
 	{
 		i.clear();
 	}
@@ -674,7 +673,7 @@ void AMAFPlayer::init()
 }
 
 MCTSOthelloParallelisation::ThreadRollout::ThreadRollout(MCT::Ptr& p, std::atomic<double>* score, Player* p1, Player* p2, int root_player_id)
-	: p(p), score(score), player1(p1), player2(p2), root_player_id(root_player_id) {}
+	:p(p), score(score), player1(p1), player2(p2), root_player_id(root_player_id) {}
 
 void MCTSOthelloParallelisation::ThreadRollout::start()
 {
@@ -693,10 +692,11 @@ void MCTSOthelloParallelisation::ThreadRollout::start()
 			if (win_player != nullptr)
 			{
 				if (win_player->id() == root_player_id)
-					score++;
+					(*score) = (*score) + 1.0;
 				else
-					score--;
+					(*score) = (*score) - 1.0;
 			}
+			break;
 		}
 	}
 }
@@ -713,17 +713,33 @@ double MCTSOthelloParallelisation::rollout(MCT::Ptr& p)
 	std::list<ThreadRollout> thread_rollout_list;
 	for (int i = 0; i < thread_num; i++)
 	{
-		thread_rollout_list.emplace_back(p, score, player1, player2, root_player_id);
+		thread_rollout_list.emplace_back(p, &score, player1, player2, root_player_id);
 	}
+	std::list<std::future<void>> return_info;
 	for (auto& i : thread_rollout_list)
 	{
-		tp.pushTask(&i);
+		return_info.emplace_back(tp.pushTask(&ThreadRollout::start, &i));
 	}
-	while (tp.runningNum())
+	for (auto& i : return_info)
 	{
-		std::this_thread::yield();
+		try
+		{
+			i.get();
+		}
+		catch (...)
+		{
+		}
 	}
 	return score;
+}
+
+void MCTSOthelloParallelisation::backup(MCT::Ptr& p, double score)
+{
+	for (MCT::Ptr i = p; i.valid(); i = i.parent())
+	{
+		i->score += score;
+		i->total += thread_num;
+	}
 }
 
 AIPlayer_Thread::AIPlayer_Thread(int id, std::string name, Chesspiece& cp, int64_t time_ms, int iterations, int max_depth, ThreadPool& tp, int thread_num)
@@ -780,5 +796,8 @@ void AIPlayer_Thread::init()
 		delete mct;
 	if (mcts != nullptr)
 		delete mcts;
+
+	mct = nullptr;
+	mcts = nullptr;
 }
 

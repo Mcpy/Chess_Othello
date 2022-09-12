@@ -12,9 +12,9 @@ Ticjudge::Ticjudge(const Chessborad& cb, Player& player1, Player& player2)
 Ticjudge::Ticjudge(const Ticjudge& cj)
 	:Chessjudge(cj)
 {
-	last_chess[0] = -1;
-	last_chess[1] = -1;
-	last_player_id = !bell_flag;
+	last_chess[0] = cj.last_chess[0];
+	last_chess[1] = cj.last_chess[1];
+	last_player_id = cj.last_player_id;
 }
 
 void Ticjudge::initborad()
@@ -193,10 +193,6 @@ double MCTSTic::rollout(MCT::Ptr& p)
 	while (1)
 	{
 		Player* win_p = nullptr;
-		Player& player = tj.whoisNext();
-		int x = -1, y = -1;
-		player.chess(tj, &x, &y);
-		tj.chess(x, y);
 		if (tj.gameover(&win_p))
 		{
 			if (win_p == nullptr)
@@ -211,6 +207,10 @@ double MCTSTic::rollout(MCT::Ptr& p)
 					return -1.0;
 			}
 		}
+		Player& player = tj.whoisNext();
+		int x = -1, y = -1;
+		player.chess(tj, &x, &y);
+		tj.chess(x, y);
 	}
 
 }
@@ -369,16 +369,6 @@ double MCTSAMAFTic::rollout(MCT::Ptr& p)
 	while (1)
 	{
 		Player* win_p = nullptr;
-		Player& player = tj.whoisNext();
-		int x = -1, y = -1;
-		player.chess(tj, &x, &y);
-		if (tj.chess(x, y))
-		{
-			int *temp = new int[2];
-			temp[0] = x;
-			temp[1] = y;
-			rollout_step[player.id() == player2->id()].push_back(temp);
-		}
 		if (tj.gameover(&win_p))
 		{
 			if (win_p == nullptr)
@@ -392,6 +382,16 @@ double MCTSAMAFTic::rollout(MCT::Ptr& p)
 				else
 					return -1.0;
 			}
+		}
+		Player& player = tj.whoisNext();
+		int x = -1, y = -1;
+		player.chess(tj, &x, &y);
+		if (tj.chess(x, y))
+		{
+			int* temp = new int[2];
+			temp[0] = x;
+			temp[1] = y;
+			rollout_step[player.id() == player2->id()].push_back(temp);
 		}
 	}
 }
@@ -417,9 +417,9 @@ void MCTSAMAFTic::backup(MCT::Ptr& p, double score)
 		}
 	}
 
-	for (auto i : rollout_step)
+	for (auto& i : rollout_step)
 	{
-		for (auto j : i)
+		for (auto& j : i)
 		{
 			delete[] j;
 		}

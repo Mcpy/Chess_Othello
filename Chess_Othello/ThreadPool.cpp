@@ -1,14 +1,8 @@
 #include "ThreadPool.h"
 
 
-void ThreadTask::start()
-{
-	std::this_thread::sleep_for(std::chrono::seconds(1));
-	std::cout << "This is a ThreadTask." << std::endl;
-}
 
-
-ThreadPool::ThreadPool(int core_pool_size, int max_pool_size, int buffer_size, int keep_alive_seconds)
+ThreadPool::ThreadPool(unsigned short core_pool_size, unsigned short max_pool_size, unsigned short buffer_size, unsigned int keep_alive_seconds)
 	:core_pool_size(core_pool_size), max_pool_size(max_pool_size), buffer_size(buffer_size), keep_alive_seconds(keep_alive_seconds), termination_flag(0), running_num(0),
 	last_running_num(0), clear_flag(0), need_clear_num(0), timestamp(std::chrono::high_resolution_clock::now()), threadpool_management(&ThreadPool::threadpoolManagement, this)
 {
@@ -19,6 +13,26 @@ ThreadPool::ThreadPool(int core_pool_size, int max_pool_size, int buffer_size, i
 }
 
 ThreadPool::~ThreadPool()
+{
+	close();
+}
+
+int ThreadPool::poolSize()
+{
+	return thread_pool.size();
+}
+
+int ThreadPool::bufferSize()
+{
+	return task_buffer.size();
+}
+
+int ThreadPool::runningNum()
+{
+	return running_num;
+}
+
+void ThreadPool::close()
 {
 	termination_flag = 1;
 	cv_management.notify_one();
@@ -32,30 +46,6 @@ ThreadPool::~ThreadPool()
 			i.join();
 		}
 	}
-
-}
-
-int ThreadPool::poolSize()
-{
-	return thread_pool.size();
-}
-
-int ThreadPool::bufferSize()
-{
-	return task_buffer.size();
-}
-
-void ThreadPool::pushTask(ThreadTask* task)
-{
-	std::unique_lock<std::mutex> ulock(mtx);
-	task_buffer.push(task);
-	ulock.unlock();
-	cv_management.notify_one();
-}
-
-int ThreadPool::runningNum()
-{
-	return running_num;
 }
 
 void ThreadPool::work()
@@ -85,32 +75,12 @@ void ThreadPool::work()
 				clear_flag = 0;
 			}
 		}
-		ThreadTask* task = task_buffer.front();
+		Task task = std::move(task_buffer.front());
 		task_buffer.pop();
 		ulock.unlock();
-		if (task != nullptr)
-		{
-			running_num++;
-			try
-			{
-				task->start();
-			}
-			//线程任务的异常处理，请结合项目要求自己添加
-			catch (const char* msg)
-			{
-				////////////////////////////
-			}
-			catch (std::exception& e)
-			{
-				const char* msg = e.what();
-				/////////////////////////////
-			}
-			catch (...)
-			{
-				///////////////////////
-			}
-			running_num--;
-		}
+		running_num++;
+		task();
+		running_num--;
 	}
 }
 
@@ -129,7 +99,7 @@ void ThreadPool::threadpoolManagement()
 		ulock.unlock();
 		int free_thread = thread_pool.size() - running_num;
 		//如果任务量超过了任务缓存则需要添加线程
-		if (task_num - free_thread > buffer_size)
+		if (task_num - free_thread > (int)buffer_size)
 		{
 			int add_num = task_num-free_thread;
 			//添加数量不得超过最大线程数
@@ -149,59 +119,57 @@ void ThreadPool::threadpoolManagement()
 		{
 			cv_thread_pool.notify_one();
 		}
-		//如果当前的线程数大于了常驻线程数量则需要处理多余的线程
+		//如果当前的线程数大于了常驻线程数量时则需要处理多余的线程
 		if (thread_pool.size() > core_pool_size)
 		{
-			//每keep_alive_seconds检测一次
-			if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - timestamp).count() > keep_alive_seconds)
+			//且没有清理任务和没有要清理的线程时
+			if (!clear_flag && clear_thread_id.empty())
 			{
-				timestamp = std::chrono::high_resolution_clock::now();
-				//当正在工作的线程较上个时间段少，可认为目前负载在减小，可清除多余且空闲的线程
-				//也可改为 last_running_num - running_num > a a为一个阈值
-				if (running_num < last_running_num)
+				//每keep_alive_seconds检测一次
+				if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - timestamp).count() > keep_alive_seconds)
 				{
-					int free_thread = thread_pool.size() - running_num, extra_thread = thread_pool.size() - core_pool_size;
-					need_clear_num = free_thread < extra_thread ? free_thread : extra_thread;
-					last_running_num = running_num;
-					if (need_clear_num > 0)
+					timestamp = std::chrono::high_resolution_clock::now();
+					//当正在工作的线程较上个时间段少，可认为目前负载在减小，可清除多余且空闲的线程
+					//也可改为 last_running_num - running_num > a a为一个阈值
+					if (running_num < last_running_num)
 					{
-						clear_flag = 1;
-						//唤醒需要清理的线程数量
-						for (int i = 0; i < need_clear_num; i++)
+						int free_thread = thread_pool.size() - running_num, extra_thread = thread_pool.size() - core_pool_size;
+						need_clear_num = free_thread < extra_thread ? free_thread : extra_thread;
+						last_running_num = running_num;
+						if (need_clear_num > 0)
 						{
-							cv_thread_pool.notify_one();
+							clear_flag = 1;
+							//唤醒需要清理的线程数量
+							for (int i = 0; i < need_clear_num; i++)
+							{
+								cv_thread_pool.notify_one();
+							}
 						}
 					}
 				}
 			}
 			std::this_thread::yield();
-			//删除已经结束的线程
-			while (1)
+		}
+		//删除已经结束的线程
+		if (!clear_thread_id.empty())
+		{
+			std::thread::id thread_id;
+			std::unique_lock<std::mutex> ulock_clear_queue(mtx_clear_queue);
+			thread_id = clear_thread_id.front();
+			clear_thread_id.pop();
+			ulock_clear_queue.unlock();
+			for (auto i = thread_pool.begin(); i != thread_pool.end(); i++)
 			{
-				std::thread::id thread_id;
-				std::unique_lock<std::mutex> ulock_clear_queue(mtx_clear_queue);
-				if (clear_thread_id.empty())
+				if (i->get_id() == thread_id)
 				{
+					if (i->joinable())
+						i->join();
+					thread_pool.erase(i);
 					break;
-				}
-				else
-				{
-					thread_id = clear_thread_id.front();
-					clear_thread_id.pop();
-				}
-				ulock_clear_queue.unlock();
-				for (auto i = thread_pool.begin(); i != thread_pool.end(); i++)
-				{
-					if (i->get_id() == thread_id)
-					{
-						if (i->joinable())
-							i->join();
-						thread_pool.erase(i);
-						break;
-					}
 				}
 			}
 		}
 	}
 }
+
 
