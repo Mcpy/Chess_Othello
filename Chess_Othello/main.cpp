@@ -23,13 +23,13 @@ int main()
 
 	Chessborad cb(borad_size[0], borad_size[1]);
 	Chesspiece black_p(1, string("black")),white_p(2,string("white"));
-	HumanPlayer player1(1, string("player1"), black_p, borad_left_top, borad_right_bottom, borad_size);
+	//HumanPlayer player1(1, string("player1"), black_p, borad_left_top, borad_right_bottom, borad_size);
 	//RandomPlayer player1(1, string("player1"), black_p);
-	//AIPlayer player1(1, string("player1"), black_p, 100, NO_LIMITS, NO_LIMITS);
+	AIPlayer player1(1, string("player1"), black_p, 500, NO_LIMITS, 5);
 	//HumanPlayer player2(2, string("player2"), white_p, borad_left_top, borad_right_bottom, borad_size);
 	//RandomPlayer player2(2, string("player2"), white_p);
-	//AIPlayer player2(2, string("player2"), black_p, 100, NO_LIMITS, NO_LIMITS);
-	AIPlayer_Thread player2(2, string("player2"), white_p, 1000, NO_LIMITS, 5, tp, 10);
+	AIPlayer player2(2, string("player2"), white_p, 500, NO_LIMITS, 5);
+	//AIPlayer_Thread player2(2, string("player2"), white_p, 1000, NO_LIMITS, 5, tp, 10);
 	//AIplayer_Progressivebias player2(2, string("player2"), white_p, NO_LIMITS, 1000, 5);
 	Othellojudge oj(cb, player1, player2);
 
